@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+data/raw/
+posthoc/output/
+analysis/figures/
+analysis/tables/
+experiments/runs/*/
+!experiments/runs/EXP-031_remaining_four_dataset_authoritative_identity_20260910/
+experiments/runs/EXP-031_remaining_four_dataset_authoritative_identity_20260910/*
+!experiments/runs/EXP-031_remaining_four_dataset_authoritative_identity_20260910/label_count_identity.csv
+*.npy
+*.fcs
+*.jar
+*.exe
+*.mat

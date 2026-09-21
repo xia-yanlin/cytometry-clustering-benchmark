@@ -1,0 +1,21 @@
+Evidence block,Dataset,Method,Repeat type,n runs,ARI mean,ARI min,ARI max,Macro F1 mean,Pairwise partition ARI mean
+Earlier fixed-regime family,Levine_32dim,FlowSOM,controlled_seed_0_29,30,0.7397078805,0.5950783979,0.8571458107,0.725197124,0.7763786301
+Earlier fixed-regime family,Samusik_01,FlowSOM,controlled_seed_0_29,30,0.8302167405,0.6485931784,0.8856295959,0.6927638401,0.7717618999
+Earlier fixed-regime family,Levine_32dim,GMM,controlled_seed_0_29,30,0.2474289971,0.2184396628,0.2772614396,0.4850914778,0.4201931466
+Earlier fixed-regime family,Samusik_01,GMM,controlled_seed_0_29,30,0.2676699936,0.2523965456,0.2923888244,0.5217798481,0.4320848844
+Earlier fixed-regime family,Levine_32dim,Leiden_fixed_PhenoGraph_graph,controlled_seed_0_29,30,0.6487413949,0.6286314819,0.6710724821,0.5945421715,0.9161991233
+Earlier fixed-regime family,Samusik_01,Leiden_fixed_PhenoGraph_graph,controlled_seed_0_29,30,0.8545628674,0.7426243063,0.896911128,0.6654150917,0.911923633
+Earlier fixed-regime family,Levine_32dim,PhenoGraph_default_Louvain,uncontrolled_native_repeat_0_29,30,0.6535074343,0.6304960404,0.6751700124,0.5971672696,0.8768349884
+Earlier fixed-regime family,Samusik_01,PhenoGraph_default_Louvain,uncontrolled_native_repeat_0_29,30,0.8514162757,0.7752155689,0.8994637755,0.6528176643,0.8900723249
+Earlier fixed-regime family,Levine_32dim,KMeans,controlled_seed_0_29,30,0.6551413903,0.5393821394,0.8557828133,0.461470514,0.7672286318
+Earlier fixed-regime family,Samusik_01,KMeans,controlled_seed_0_29,30,0.5676962552,0.4935164963,0.659368704,0.5363527812,0.7189426799
+Current full-event/native-repeat result,Levine_32dim,FlowSOM_R_2.18.0_full_event,controlled_seed,30,0.8064741412,0.7590719755,0.8529474302,0.7412905894,0.8874366025
+Current full-event/native-repeat result,Samusik_01,FlowSOM_R_2.18.0_full_event,controlled_seed,30,0.8798131374,0.8219638409,0.9044115331,0.6815426352,0.8233021387
+Current full-event/native-repeat result,Levine_13dim,PhenoGraph_v1.5.7_default_Louvain,native_repeat,30,0.8725655772,0.8573096313,0.8871791173,0.4623437203,0.9096821683
+Current full-event/native-repeat result,Levine_32dim,PhenoGraph_v1.5.7_default_Louvain,native_repeat,30,0.5529723323,0.4943824623,0.5893063473,0.5741141798,0.8113922374
+Current full-event/native-repeat result,Samusik_01,PhenoGraph_v1.5.7_default_Louvain,native_repeat,30,0.8291449653,0.8056901774,0.8564358257,0.6517571838,0.904630381
+Current full-event/native-repeat result,Nilsson_rare,official_Xshift_fixed_neighbor_K20,native_repeat,30,,,,,1
+Current full-event/native-repeat result,Samusik_01,official_Xshift_fixed_neighbor_K20,native_repeat,30,,,,,1
+Current full-event/native-repeat result,Levine_13dim,official_Xshift_fixed_neighbor_K20,native_repeat,30,,,,,1
+Current full-event/native-repeat result,Levine_32dim,official_Xshift_fixed_neighbor_K20,native_repeat,30,,,,,1
+Current full-event/native-repeat result,Mosmann_rare,official_Xshift_fixed_neighbor_K20,native_repeat,30,,,,,1

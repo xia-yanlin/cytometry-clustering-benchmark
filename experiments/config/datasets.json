@@ -1,0 +1,88 @@
+{
+  "data_root": "data/raw",
+  "datasets": {
+    "Levine_13dim": {
+      "filename": "Levine_13dim.txt",
+      "separator": "tab",
+      "cofactor": null,
+      "expected_markers": 13,
+      "exclude_columns": [
+        "label"
+      ],
+      "label_policy": "integer_1_to_24_evaluable"
+    },
+    "Levine_32dim": {
+      "filename": "Levine_32dim_notransform.txt",
+      "separator": "comma",
+      "cofactor": 5,
+      "expected_markers": 32,
+      "exclude_columns": [
+        "Time",
+        "Cell_length",
+        "DNA1",
+        "DNA2",
+        "Viability",
+        "file_number",
+        "event_number",
+        "label"
+      ],
+      "label_policy": "unassigned_string_not_evaluable"
+    },
+    "Samusik_01": {
+      "filename": "Samusik_01_notransform.txt",
+      "separator": "comma",
+      "cofactor": 5,
+      "expected_markers": 39,
+      "exclude_columns": [
+        "Time",
+        "Cell_length",
+        "BC1",
+        "BC2",
+        "BC3",
+        "BC4",
+        "BC5",
+        "BC6",
+        "DNA1",
+        "DNA2",
+        "Cisplatin",
+        "beadDist",
+        "label"
+      ],
+      "label_policy": "unassigned_string_not_evaluable"
+    },
+    "Nilsson_rare": {
+      "filename": "Nilsson_rare_notransform.csv",
+      "separator": "comma",
+      "cofactor": 150,
+      "expected_markers": 13,
+      "exclude_columns": [
+        "FSC-A",
+        "FSC-H",
+        "FSC-W",
+        "SSC-A",
+        "PI",
+        "Time",
+        "label"
+      ],
+      "label_policy": "binary_target_and_other_all_evaluable"
+    },
+    "Mosmann_rare": {
+      "filename": "Mosmann_rare_notransform.csv",
+      "separator": "comma",
+      "cofactor": 150,
+      "expected_markers": 14,
+      "exclude_columns": [
+        "FSC-A",
+        "FSC-H",
+        "FSC-W",
+        "SSC-A",
+        "SSC-H",
+        "SSC-W",
+        "Live_Dead",
+        "Time",
+        "label"
+      ],
+      "label_policy": "binary_target_and_other_all_evaluable"
+    }
+  }
+}

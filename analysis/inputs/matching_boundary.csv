@@ -1,0 +1,4 @@
+case,k_true,k_pred,matrix_shape,mapping_size,unmatched_true_populations,macro_f1,pass,extra_predicted_clusters,target_f1
+K_pred_lt_K_true,3,2,"(3, 2)",2,1.0,0.5555555555555555,True,,
+K_pred_gt_K_true,2,3,"(2, 3)",2,,0.8333333333333333,True,1.0,
+rare_target_perfect,2,2,"(2, 2)",2,,,True,,1.0

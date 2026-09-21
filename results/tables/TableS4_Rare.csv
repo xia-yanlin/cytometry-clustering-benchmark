@@ -1,0 +1,18 @@
+Dataset,Method,Regime,n runs,ARI mean,Precision mean,Recall mean,F1 mean,Repeat type,Scope
+Mosmann_rare,GMM,K=10,30,8.7693798e-05,0.005530448382,0.9935779817,0.0109961118,controlled_seed,Fixed K sensitivity; labels excluded from fit; post hoc target matching
+Mosmann_rare,GMM,K=2,30,4.373172787e-05,0.0004670004267,0.7981651376,0.0009334546961,controlled_seed,Reference-count K; labels excluded from fit; post hoc target matching
+Mosmann_rare,GMM,K=40,30,3.226595725e-05,0.0541105233,0.9571865443,0.09523535643,controlled_seed,Fixed K sensitivity; labels excluded from fit; post hoc target matching
+Mosmann_rare,PhenoGraph,default Louvain,30,9.197239897e-05,0.317393432,0.9911314985,0.4752301546,native repeat,Fixed graph/parameter regime
+Mosmann_rare,R FlowSOM,official_auto_max40,30,0.0003060069328,0.03677826748,0.9415902141,0.06976953907,paired SOM seed,Named regime
+Mosmann_rare,R FlowSOM,official_fixed_k40,30,0.0001090969851,0.06853057491,0.8743119266,0.1257991808,paired SOM seed,Named regime
+Mosmann_rare,R FlowSOM,official_fixed_ktrue_2,30,-0.0002456518579,0.0003578785312,0.8018348624,0.0006964957676,paired SOM seed,K=true is label-informed sensitivity
+Mosmann_rare,official_Xshift,neighbor_K=20,1,0.0001132500732,0.7672413793,0.8165137615,0.7911111111,single_fixed_partition,Unlabeled fixed regime; post hoc target matching
+Nilsson_rare,Deterministic-SPADE,official K=40,2,0.001779989756,0.4549098196,0.6340782123,0.5297549592,"accepted attempts 3/4, same partition",One dataset only
+Nilsson_rare,GMM,K=10,30,0.002581649403,0.06323820633,0.9236499069,0.118123636,controlled_seed,Fixed K sensitivity; labels excluded from fit; post hoc target matching
+Nilsson_rare,GMM,K=2,30,0.007750077188,0.01996950654,1,0.0391570658,controlled_seed,Reference-count K; labels excluded from fit; post hoc target matching
+Nilsson_rare,GMM,K=40,30,0.001024550232,0.2736474567,0.8811918063,0.4154061463,controlled_seed,Fixed K sensitivity; labels excluded from fit; post hoc target matching
+Nilsson_rare,PhenoGraph,default Louvain,30,0.0003887150354,0.1093574584,0.9273743017,0.1950440696,native repeat,Fixed graph/parameter regime
+Nilsson_rare,R FlowSOM,official_auto_max40,30,0.005514727213,0.05739221837,0.6720670391,0.06326129788,paired SOM seed,Named regime
+Nilsson_rare,R FlowSOM,official_fixed_k40,30,0.00732087095,0.2562444377,0.7999068901,0.3325862921,paired SOM seed,Named regime
+Nilsson_rare,R FlowSOM,official_fixed_ktrue_2,30,0.0337499115,0.05483123495,0.09795158287,0.04073732145,paired SOM seed,K=true is label-informed sensitivity
+Nilsson_rare,official_Xshift,neighbor_K=20,1,0.002350619092,0.6033333333,0.5055865922,0.5501519757,single_fixed_partition,Unlabeled fixed regime; post hoc target matching

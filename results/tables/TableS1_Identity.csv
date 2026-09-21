@@ -1,0 +1,6 @@
+Dataset,Resource,Events,Markers,Evaluable events,Transform,Max verified numeric delta,Label mismatches
+Levine_13dim,EH2242,167044,13,81747,Already transformed; no second arcsinh,6.217248938e-15,0
+Levine_32dim,EH2240,265627,32,104184,arcsinh(x/5) once,5.00222086e-12,0
+Samusik_01,EH2244,86864,39,53173,arcsinh(x/5) once,5.00222086e-12,0
+Nilsson_rare,EH2248,44140,13,44140,arcsinh(x/150) once,5.00222086e-12,0
+Mosmann_rare,EH2250,396460,14,396460,arcsinh(x/150) once,5.00222086e-12,0

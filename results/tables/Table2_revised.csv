@@ -1,0 +1,7 @@
+﻿Analysis identity,Events fitted / mapped,Parameters,Repetition and reference use
+R FlowSOM 2.18.0,All events; Levine_32dim and Samusik_01,10 × 10 SOM; rlen 30; 40 metaclusters,30 controlled seeds per dataset. Labels used only for external evaluation.
+Python FlowSOM 0.2.2 inclusion contrast,"Levine_13dim: 81,747 labeled events or all 167,044",10 × 10 SOM; rlen 10; 24 metaclusters; seed 42,One matched pair. Metacluster count uses the reference count; same scoring subset.
+Python SOM + R FlowSOM metaclustering,"Fixed 20,000-event training; all-event node mapping","Frozen 10 × 10 maps; rlen 30; R automatic max40, fixed40, or reference count",30 paired SOM seeds per dataset. Only reference-count condition uses labels to set K.
+PhenoGraph 1.5.7 / native Louvain,One all-event graph per multiclass dataset,Euclidean/Jaccard graph; 30 neighbors,30 native Louvain repeats on each fixed graph. Labels used only for scoring.
+Vortex X-shift 2017 rev2,All events; five datasets,Main neighbor K = 20; 10/40 sensitivity; Nilsson published60 and auto elbow,30 native executions per dataset at K = 20; other named endpoints separate.
+"GMM, scikit-learn 1.6.1","Fixed 20,000-event training; full-event prediction; two rare datasets","Full covariance; n_init = 1; 2, 10, 40 components",30 seeds per K. K = 2 encodes binary reference count; 10/40 are fixed sensitivities.

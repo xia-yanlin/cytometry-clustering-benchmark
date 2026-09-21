@@ -1,0 +1,3 @@
+dataset,condition,fit_events,ari,macro_f1,reference_k_used,unit,source_id
+Levine_13dim,labeled_direct_a,81747,0.8936264732788051,0.5356532334034143,24,one_fixed_seed,flowsom_event_inclusion
+Levine_13dim,all_direct,167044,0.6575051281874573,0.32526613520012354,24,one_fixed_seed,flowsom_event_inclusion

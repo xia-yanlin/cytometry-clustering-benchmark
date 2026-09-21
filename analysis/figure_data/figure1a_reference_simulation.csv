@@ -1,0 +1,8 @@
+background_clusters,ari,target_f1,unit,source_id
+1,1.0,1.0,simulation_condition,metric_simulation
+2,0.0380952380952381,1.0,simulation_condition,metric_simulation
+4,0.013029315960912053,1.0,simulation_condition,metric_simulation
+8,0.0056258800873151505,1.0,simulation_condition,metric_simulation
+16,0.002633312761079815,1.0,simulation_condition,metric_simulation
+32,0.001275920286438318,1.0,simulation_condition,metric_simulation
+64,0.0006282450858899073,1.0,simulation_condition,metric_simulation

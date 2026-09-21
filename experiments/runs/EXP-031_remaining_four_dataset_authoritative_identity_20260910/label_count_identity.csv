@@ -1,0 +1,45 @@
+﻿dataset,label,official_count,local_count,count_equal
+Levine_32dim,Basophils,1207,1207,True
+Levine_32dim,CD16+_NK_cells,2248,2248,True
+Levine_32dim,CD16-_NK_cells,3905,3905,True
+Levine_32dim,CD34+CD38+CD123+_HSPCs,304,304,True
+Levine_32dim,CD34+CD38+CD123-_HSPCs,3295,3295,True
+Levine_32dim,CD34+CD38lo_HSCs,916,916,True
+Levine_32dim,CD4_T_cells,26366,26366,True
+Levine_32dim,CD8_T_cells,20108,20108,True
+Levine_32dim,Mature_B_cells,16520,16520,True
+Levine_32dim,Monocytes,21099,21099,True
+Levine_32dim,Plasma_B_cells,330,330,True
+Levine_32dim,Pre_B_cells,6135,6135,True
+Levine_32dim,Pro_B_cells,513,513,True
+Levine_32dim,pDCs,1238,1238,True
+Levine_32dim,unassigned,161443,161443,True
+Samusik_01,B-cell Frac A-C (pro-B cells),266,266,True
+Samusik_01,Basophils,292,292,True
+Samusik_01,CD4 T cells,406,406,True
+Samusik_01,CD8 T cells,798,798,True
+Samusik_01,CLP,59,59,True
+Samusik_01,CMP,197,197,True
+Samusik_01,Classical Monocytes,13607,13607,True
+Samusik_01,Eosinophils,5173,5173,True
+Samusik_01,GMP,703,703,True
+Samusik_01,HSC,3,3,True
+Samusik_01,IgD- IgMpos B cells,3508,3508,True
+Samusik_01,IgDpos IgMpos B cells,8768,8768,True
+Samusik_01,IgM- IgD- B-cells,1123,1123,True
+Samusik_01,Intermediate Monocytes,12045,12045,True
+Samusik_01,MEP,420,420,True
+Samusik_01,MPP,197,197,True
+Samusik_01,Macrophages,199,199,True
+Samusik_01,NK cells,189,189,True
+Samusik_01,NKT cells,961,961,True
+Samusik_01,Non-Classical Monocytes,1016,1016,True
+Samusik_01,Plasma Cells,118,118,True
+Samusik_01,gd T cells,35,35,True
+Samusik_01,mDCs,116,116,True
+Samusik_01,pDCs,2974,2974,True
+Samusik_01,unassigned,33691,33691,True
+Nilsson_rare,HSCs,358,358,True
+Nilsson_rare,other,43782,43782,True
+Mosmann_rare,activated,109,109,True
+Mosmann_rare,other,396351,396351,True

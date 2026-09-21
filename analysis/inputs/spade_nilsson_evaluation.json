@@ -1,0 +1,37 @@
+{
+  "experiment_id": "EXP-044-R4",
+  "label_use": "external evaluation only; no fitting, parameter selection, or K selection",
+  "selection_rule": "single cluster maximizing F1; tie by higher recall then lower cluster ID",
+  "attempts": [
+    {
+      "attempt": 3,
+      "events": 44140,
+      "target_events": 358,
+      "occupied_clusters": 40,
+      "ari_two_class_reference_vs_40_clusters": 0.0017799897564082048,
+      "selected_cluster": 29,
+      "selected_cluster_size": 499,
+      "target_tp": 227,
+      "target_fp": 272,
+      "target_fn": 131,
+      "target_precision": 0.45490981963927857,
+      "target_recall": 0.6340782122905028,
+      "target_f1": 0.52975495915986
+    },
+    {
+      "attempt": 4,
+      "events": 44140,
+      "target_events": 358,
+      "occupied_clusters": 40,
+      "ari_two_class_reference_vs_40_clusters": 0.0017799897564082048,
+      "selected_cluster": 29,
+      "selected_cluster_size": 499,
+      "target_tp": 227,
+      "target_fp": 272,
+      "target_fn": 131,
+      "target_precision": 0.45490981963927857,
+      "target_recall": 0.6340782122905028,
+      "target_f1": 0.52975495915986
+    }
+  ]
+}

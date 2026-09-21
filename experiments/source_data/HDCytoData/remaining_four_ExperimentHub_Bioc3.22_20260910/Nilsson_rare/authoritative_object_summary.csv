@@ -1,0 +1,7 @@
+field,value
+dataset,Nilsson_rare
+resource_id,EH2248
+rows,44140
+columns,19
+binary_order,column-major
+binary_type,little-endian float64

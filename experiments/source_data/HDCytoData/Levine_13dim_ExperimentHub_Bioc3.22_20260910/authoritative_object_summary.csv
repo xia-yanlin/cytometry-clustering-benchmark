@@ -1,0 +1,10 @@
+field,value
+resource_id,EH2242
+rows,167044
+expression_columns,13
+unique_population_values,25
+unassigned_events,85297
+assigned_events,81747
+package_HDCytoData,1.30.0
+package_ExperimentHub,3.0.0
+package_SummarizedExperiment,1.40.0

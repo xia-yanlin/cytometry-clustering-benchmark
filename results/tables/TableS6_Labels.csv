@@ -1,0 +1,25 @@
+Dataset,Method,Scenario,Nominal fraction,Changed labels,Excluded events,Δ ARI,Δ Macro F1
+Levine_32dim,X-shift,boundary_flip,0.01,952,0,0.0007997170125,0.001859674639
+Levine_32dim,FlowSOM,boundary_flip,0.01,952,0,-0.001392483542,0.003518259555
+Levine_32dim,X-shift,boundary_exclude,0.01,0,1040,0.005747555295,0.004077753764
+Levine_32dim,FlowSOM,boundary_exclude,0.01,0,1040,0.007893579906,0.00544072028
+Levine_32dim,X-shift,boundary_flip,0.05,4201,0,-0.02580885927,0.004540139631
+Levine_32dim,FlowSOM,boundary_flip,0.05,4201,0,-0.04352750651,0.009028771497
+Levine_32dim,X-shift,boundary_exclude,0.05,0,5208,0.01085638341,0.01823503814
+Levine_32dim,FlowSOM,boundary_exclude,0.05,0,5208,0.01660600312,0.02253629257
+Levine_32dim,X-shift,boundary_flip,0.1,7315,0,-0.05973864453,-0.002557719809
+Levine_32dim,FlowSOM,boundary_flip,0.1,7315,0,-0.09146761026,0.009596018978
+Levine_32dim,X-shift,boundary_exclude,0.1,0,10420,0.01215573718,0.03116759256
+Levine_32dim,FlowSOM,boundary_exclude,0.1,0,10420,0.01986493383,0.04031313793
+Samusik_01,X-shift,boundary_flip,0.01,534,0,0.002882796197,0.004173816311
+Samusik_01,FlowSOM,boundary_flip,0.01,534,0,0.001393183061,0.006550623262
+Samusik_01,X-shift,boundary_exclude,0.01,0,534,0.01164023233,0.006205346224
+Samusik_01,FlowSOM,boundary_exclude,0.01,0,534,0.01041622956,0.008561486965
+Samusik_01,X-shift,boundary_flip,0.05,2578,0,-0.02416568657,0.006134946691
+Samusik_01,FlowSOM,boundary_flip,0.05,2578,0,-0.03684731595,0.006154631754
+Samusik_01,X-shift,boundary_exclude,0.05,0,2659,0.04048942082,0.01872771479
+Samusik_01,FlowSOM,boundary_exclude,0.05,0,2659,0.02983714945,0.02298984975
+Samusik_01,X-shift,boundary_flip,0.1,5016,0,-0.09402239373,-0.003209246185
+Samusik_01,FlowSOM,boundary_flip,0.1,5016,0,-0.1073217775,5.454993947e-05
+Samusik_01,X-shift,boundary_exclude,0.1,0,5320,0.05560487854,0.02889938312
+Samusik_01,FlowSOM,boundary_exclude,0.1,0,5320,0.04010883676,0.0328529654

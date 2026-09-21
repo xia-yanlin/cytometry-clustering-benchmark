@@ -1,0 +1,6 @@
+dataset,filename,total_cells,evaluated_cells,unassigned_cells,markers,input_transform,analysis_transform,label_policy
+Levine_13dim,Levine_13dim.txt,167044,81747,85297,13,already_transformed,none,integer_1_to_24_evaluable
+Levine_32dim,Levine_32dim_notransform.txt,265627,104184,161443,32,untransformed,arcsinh(x/5),unassigned_string_not_evaluable
+Samusik_01,Samusik_01_notransform.txt,86864,53173,33691,39,untransformed,arcsinh(x/5),unassigned_string_not_evaluable
+Nilsson_rare,Nilsson_rare_notransform.csv,44140,44140,0,13,untransformed,arcsinh(x/150),binary_target_and_other_all_evaluable
+Mosmann_rare,Mosmann_rare_notransform.csv,396460,396460,0,14,untransformed,arcsinh(x/150),binary_target_and_other_all_evaluable

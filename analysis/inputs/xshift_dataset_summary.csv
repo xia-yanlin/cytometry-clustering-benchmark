@@ -1,0 +1,5 @@
+dataset,evaluation_mode,n_total_events,n_evaluable_events,n_predicted_clusters,ari,primary_f1
+Samusik_01,multiclass_rectangular_hungarian,86864,53173,27,0.8808705049221943,0.6619947969726269
+Nilsson_rare,rare_target_best_single_cluster,44140,44140,60,0.0023506190920718,0.5501519756838905
+Levine_32dim,multiclass_rectangular_hungarian,265627,104184,416,0.4663553829493051,0.623280544055724
+Mosmann_rare,rare_target_best_single_cluster,396460,396460,87,0.0001132500731992,0.7911111111111111

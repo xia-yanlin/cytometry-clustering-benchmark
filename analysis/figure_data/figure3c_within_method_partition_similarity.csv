@@ -1,0 +1,11 @@
+dataset,method,repeat_type,n_runs,pair_count,mean_pairwise_ari,min_pairwise_ari,max_pairwise_ari,source_id
+Levine_32dim,FlowSOM_R_2.18.0_full_event,controlled_seed,30,435,0.887436602451871,0.8155186744409543,0.9532458343585863,flowsom_r_full_partition
+Samusik_01,FlowSOM_R_2.18.0_full_event,controlled_seed,30,435,0.8233021387189993,0.7206355270256507,0.938353920576426,flowsom_r_full_partition
+Levine_13dim,PhenoGraph_v1.5.7_default_Louvain,native_repeat,30,435,0.9096821682537133,0.8672542451104728,0.9447794155784456,phenograph_full_partition
+Levine_32dim,PhenoGraph_v1.5.7_default_Louvain,native_repeat,30,435,0.8113922373899777,0.7392013178567239,0.9031715072296972,phenograph_full_partition
+Samusik_01,PhenoGraph_v1.5.7_default_Louvain,native_repeat,30,435,0.90463038103802,0.8272726517990234,0.9519449826272187,phenograph_full_partition
+Nilsson_rare,official_Xshift_fixed_neighbor_K20,native_repeat,30,435,1.0,1.0,1.0,xshift_nilsson_repeat_pairs
+Samusik_01,official_Xshift_fixed_neighbor_K20,native_repeat,30,435,1.0,1.0,1.0,xshift_samusik_repeat_pairs
+Levine_13dim,official_Xshift_fixed_neighbor_K20,native_repeat,30,435,1.0,1.0,1.0,xshift_levine13_repeat_pairs
+Levine_32dim,official_Xshift_fixed_neighbor_K20,native_repeat,30,435,1.0,1.0,1.0,xshift_levine32_repeat_pairs
+Mosmann_rare,official_Xshift_fixed_neighbor_K20,native_repeat,30,435,1.0,1.0,1.0,xshift_mosmann_repeat_pairs

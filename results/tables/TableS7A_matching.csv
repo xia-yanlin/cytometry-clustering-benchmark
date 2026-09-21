@@ -1,0 +1,9 @@
+﻿Analysis,Dataset,n,Primary F1,Alternative F1,Mean increase,Max increase
+PhenoGraph fixed graph,Samusik_01,30,0.651757,0.652374,0.000617,0.002261
+PhenoGraph fixed graph,Levine_13dim,30,0.462344,0.463155,0.000811,0.002569
+PhenoGraph fixed graph,Levine_32dim,30,0.574114,0.574121,0.000007,0.000080
+R FlowSOM,Samusik_01,30,0.681543,0.683153,0.001610,0.006097
+R FlowSOM,Levine_32dim,30,0.741291,0.741358,0.000068,0.000514
+X-shift K20,Levine_32dim,1,0.623281,0.623281,0.000000,0.000000
+Python FlowSOM all-event,Levine_13dim,1,0.325266,0.325757,0.000491,0.000491
+Python FlowSOM labeled-only,Levine_13dim,1,0.535653,0.535899,0.000246,0.000246

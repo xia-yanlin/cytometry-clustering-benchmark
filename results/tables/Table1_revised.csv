@@ -1,0 +1,6 @@
+﻿Dataset / accession,Total events,Evaluable events,Markers,Reference,Transformation
+Levine_13dim / EH2242,"167,044","81,747",13,24 populations,Verified transformed TXT; no second asinh
+Levine_32dim / EH2240,"265,627","104,184",32,14 populations,asinh(x/5) once
+Samusik_01 / EH2244,"86,864","53,173",39,24 populations,asinh(x/5) once
+Nilsson_rare / EH2248,"44,140","44,140",13,358 target + other,asinh(x/150) once
+Mosmann_rare / EH2250,"396,460","396,460",14,109 target + other,asinh(x/150) once

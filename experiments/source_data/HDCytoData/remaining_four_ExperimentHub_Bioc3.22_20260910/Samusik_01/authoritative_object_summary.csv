@@ -1,0 +1,7 @@
+field,value
+dataset,Samusik_01
+resource_id,EH2244
+rows,86864
+columns,51
+binary_order,column-major
+binary_type,little-endian float64

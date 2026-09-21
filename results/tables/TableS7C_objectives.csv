@@ -1,0 +1,7 @@
+﻿Dataset,Selection objective,Grid / rlen,Mean ARI,Mean macro F1,Mean median BMU
+Levine_32dim,Maximize ARI,20 / 30,0.802062,0.719388,1.998412
+Levine_32dim,Maximize macro F1,15 / 30,0.782515,0.743594,2.064465
+Levine_32dim,Minimize BMU distance,20 / 30,0.802062,0.719388,1.998412
+Samusik_01,Maximize ARI,20 / 30,0.870389,0.677862,2.213439
+Samusik_01,Maximize macro F1,10 / 20,0.798772,0.700889,2.382989
+Samusik_01,Minimize BMU distance,20 / 30,0.870389,0.677862,2.213439
