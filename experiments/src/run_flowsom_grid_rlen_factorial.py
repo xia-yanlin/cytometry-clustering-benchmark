@@ -454,7 +454,7 @@ def main() -> int:
                             f"# {args.experiment_id} {run_name}",
                             "",
                             f"FlowSOM 0.2.2; {args.dataset}; a fixed unlabeled 20,000-event training sample mapped to all {contract['total_events']:,} events; {side}×{side} grid; rlen={rlen}; seed={seed}; 40 fixed metaclusters.",
-                            f"median BMU distance={unsupervised['median_bmu_distance']:.6f}；ARI={metrics['ari']:.6f}；Macro P/R/F1={metrics['macro_precision']:.6f}/{metrics['macro_recall']:.6f}/{metrics['macro_f1']:.6f}。",
+                            f"Median BMU distance={unsupervised['median_bmu_distance']:.6f}; ARI={metrics['ari']:.6f}; macro P/R/F1={metrics['macro_precision']:.6f}/{metrics['macro_recall']:.6f}/{metrics['macro_f1']:.6f}.",
                             f"Integrity checks passed: {int(checks_frame['passed'].sum())}/{len(checks_frame)}. Labels were used only for evaluation after mapping.",
                         ]
                     )

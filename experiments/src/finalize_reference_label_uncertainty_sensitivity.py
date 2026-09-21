@@ -272,7 +272,7 @@ def main() -> int:
     ]
     for row in ten_percent.itertuples(index=False):
         lines.append(
-            f"- {row.dataset} / {row.algorithm}: ΔARI={row.delta_ari_from_baseline:+.6f}，ΔMacro F1={row.delta_macro_f1_from_baseline:+.6f}。"
+            f"- {row.dataset} / {row.algorithm}: ΔARI={row.delta_ari_from_baseline:+.6f}, ΔMacro F1={row.delta_macro_f1_from_baseline:+.6f}."
         )
     lines.extend(
         [

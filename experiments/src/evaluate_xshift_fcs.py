@@ -215,7 +215,7 @@ def main() -> int:
         "# EXP-009A Official X-shift evaluation on Levine_13dim",
         "",
         f"Evaluated events: {int(evaluable.sum()):,}/{len(frame):,}; reference populations: 24; predicted clusters across all events: {metrics['n_predicted_clusters_all_events']}; predicted clusters in the evaluation subset: {metrics['n_predicted_clusters_evaluable']}.",
-        f"ARI={metrics['ari']:.6f}；Macro F1={metrics['macro_f1']:.6f}；accuracy={metrics['accuracy']:.6f}。",
+        f"ARI={metrics['ari']:.6f}; macro F1={metrics['macro_f1']:.6f}; accuracy={metrics['accuracy']:.6f}.",
         f"Unmatched clusters: {metrics['unmatched_clusters']}; unmatched evaluated events: {metrics['unmatched_evaluable_events']:,}.",
         "",
         "## Interpretation limits",

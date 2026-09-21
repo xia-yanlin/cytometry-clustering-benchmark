@@ -561,7 +561,7 @@ def main() -> int:
 
     if expected["mode"] == "multiclass":
         result_lines = [
-            f"ARI={metrics['ari']:.6f}；Macro precision={metrics['macro_precision']:.6f}；Macro recall={metrics['macro_recall']:.6f}；Macro F1={metrics['macro_f1']:.6f}。",
+            f"ARI={metrics['ari']:.6f}; macro precision={metrics['macro_precision']:.6f}; macro recall={metrics['macro_recall']:.6f}; macro F1={metrics['macro_f1']:.6f}.",
             f"Reference populations={metrics['n_true_populations']}; predicted clusters in the evaluation subset={metrics['n_predicted_clusters_evaluable']}; unmatched evaluated clusters={metrics['unmatched_evaluable_clusters']}; unmatched evaluated events={metrics['unmatched_evaluable_events']:,}.",
             f"Mean effective predicted clusters per population={metrics['mean_population_effective_predicted_clusters']:.3f}; weighted cluster purity={metrics['weighted_evaluable_cluster_purity']:.6f}.",
         ]

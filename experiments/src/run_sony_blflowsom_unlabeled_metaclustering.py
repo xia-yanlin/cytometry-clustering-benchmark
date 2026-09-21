@@ -381,9 +381,9 @@ def main() -> int:
     (output / "scientific_summary.md").write_text(
         "# EXP-037 Unlabeled metaclustering for Sony BL-FlowSOM\n\n"
         f"Primary checks passed: {int(checks_frame.passed.sum())}/{len(checks_frame)}. Automatic max40 selected K={int(auto.selected_k)} at selector seed 12345, "
-        f"ARI={auto.ari:.6f}，Macro P/R/F1={auto.macro_precision:.6f}/{auto.macro_recall:.6f}/{auto.macro_f1:.6f}。"
+        f"ARI={auto.ari:.6f}, macro P/R/F1={auto.macro_precision:.6f}/{auto.macro_recall:.6f}/{auto.macro_f1:.6f}. "
         f"K counts across 30 selector seeds were {json.dumps(k_counts, ensure_ascii=False)}; the mean/range of pairwise event-partition ARI was "
-        f"{pair_values.mean():.6f}/[{pair_values.min():.6f}, {pair_values.max():.6f}]。"
+        f"{pair_values.mean():.6f}/[{pair_values.min():.6f}, {pair_values.max():.6f}]. "
         "This result supplies an unlabeled endpoint for the hybrid Sony PoC plus R FlowSOM pipeline. It does not establish equivalence to Sony's cloud service and is not included in a cross-algorithm ranking.\n",
         encoding="utf-8",
     )
