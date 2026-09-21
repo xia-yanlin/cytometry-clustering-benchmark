@@ -1,8 +1,4 @@
-"""Descriptive post hoc selection from frozen FlowSOM summaries (2026-09-20).
-No clustering or held-out evaluation is performed.
-Usage: python objective_selection.py --source /path/to/extracted/source --out ./out
-Dependencies: pandas, numpy. Input: package/inputs/flowsom_pareto.csv.
-"""
+"""Compare selection objectives using the saved FlowSOM parameter grid."""
 
 from __future__ import annotations
 
@@ -21,7 +17,7 @@ def main() -> None:
     relative = Path("package/inputs/flowsom_pareto.csv")
     path = args.source / relative
     if not path.is_file():
-        raise FileNotFoundError(f"Missing frozen input: {path}")
+        raise FileNotFoundError(f"Missing input: {path}")
     data = pd.read_csv(path)
     columns = [
         "dataset",

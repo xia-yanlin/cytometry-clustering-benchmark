@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import platform
 import sys
@@ -14,14 +13,6 @@ import scipy
 import sklearn
 from scipy.optimize import linear_sum_assignment
 from sklearn.metrics import adjusted_rand_score
-
-
-def file_sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        while block := handle.read(1024 * 1024):
-            digest.update(block)
-    return digest.hexdigest()
 
 
 def contingency(y_true: np.ndarray, y_pred: np.ndarray):
@@ -168,7 +159,6 @@ def main() -> int:
         "experiment_id": "EXP-002",
         "started_utc": datetime.now(timezone.utc).isoformat(),
         "script": str(Path(__file__).resolve()),
-        "script_sha256": file_sha256(Path(__file__)),
         "python": sys.version,
         "python_executable": sys.executable,
         "platform": platform.platform(),
@@ -188,7 +178,7 @@ def main() -> int:
     report = [
         "# EXP-002 Validation of metrics and matching rules",
         "",
-        "This validation addresses reviewer questions 12, 15, 16, and 17.",
+        "The boundary cases check rectangular matching when the predicted and reference cluster counts differ.",
         "",
         f"Boundary tests passed: {len(tests) - len(failures)}/{len(tests)}.",
         "",
@@ -201,10 +191,10 @@ def main() -> int:
         "",
         "## Validation scope",
         "",
-        "- The boundary-scoring rule for question 15 passes unit-level checks but must still be integrated into real algorithm pipelines.",
-        "- For questions 12, 16, and 17, only the mechanism and metric implementation are validated here; adequacy must be assessed after running both real rare-population datasets.",
+        "- The boundary-scoring rule passes these unit-level checks but should also be exercised in the full analysis pipeline.",
+        "- Metric behavior on real data is evaluated separately using both rare-population datasets.",
     ]
-    (args.output / "audit.md").write_text("\n".join(report) + "\n", encoding="utf-8")
+    (args.output / "summary.md").write_text("\n".join(report) + "\n", encoding="utf-8")
     exit_code = int(bool(failures))
     summary = {"output": str(args.output), "failures": failures, "exit_code": exit_code}
     (args.output / "stdout.log").write_text(

@@ -1,18 +1,15 @@
-# Result-generation code
+# Experimental scripts
 
-`src/` contains the 55 source files retained for the final revision: 46 Python scripts and 9 R scripts. Together they cover data retrieval and identity checks, final method execution, external evaluation, sensitivity analyses, result aggregation and verification. The four display scripts, two post hoc scripts and unified reproduction entry point bring the repository-wide total to 62 source files.
+`src/` contains the scripts used for data preparation, method-specific runs, evaluation and sensitivity analyses. They are kept as separate scripts because the methods use different software environments and several analyses build on outputs from an earlier stage.
 
-This is a dependency-closed selection. Two helper modules omitted from the earlier release candidate (`analyze_flowsom_stability30.py` and `run_flowsom_nested_marker_dimension.py`) and two direct verification dependencies (`verify_hdcytodata_levine13_numeric_identity.R` and `verify_remaining_xshift_pipeline.py`) are included. The superseded `analyze_cell_inclusion.py` and the earlier PhenoGraph finalization snapshots are not included; the current finalizers no longer require those snapshots to be present.
+The filenames indicate their role:
 
-The files are organized by function:
+- `retrieve_*` and `compare_*` prepare or compare the public datasets;
+- `run_*` scripts execute clustering and sensitivity analyses;
+- `evaluate_*` scripts calculate the external clustering metrics; and
+- `analyze_*` and `finalize_*` scripts assemble run-level results for the manuscript tables and figures.
 
-- `retrieve_*`, `compare_*`, `data_audit.py` and the dataset-identity `verify_*` scripts retrieve or verify the public inputs.
-- `run_*`, `cell_inclusion_kmeans.py` and `rare_kmeans_experiment.py` execute the selected clustering and sensitivity regimes.
-- `evaluate_*` and `metric_validation.py` implement external evaluation and metric checks.
-- `analyze_*`, `audit_*`, `finalize_*` and `replicate_multimodality_power.py` generate the accepted summaries used by the manuscript.
-- `build_method_identity_matrix.py` and `increment_parameter_regime_registry_xshift_levine32.py` generate the method-identity and parameter-regime provenance tables.
-
-No run directories, event-level partitions, temporary recovery folders or superseded scripts are tracked. Several analysis scripts read accepted parent outputs through explicit command-line arguments; the large parent artifacts are not duplicated in GitHub.
+Large event-level partitions and intermediate run directories are not stored in the repository. Scripts that depend on an earlier run accept the relevant input or parent directory as a command-line argument.
 
 `config/datasets.json` gives marker exclusions, transformation cofactors and label policies. Set `data_root` to the directory holding the five analysis files, or use the repository's `data/raw` layout described in [data/README.md](../data/README.md). For the scripts that use it, `CYTOMETRY_DATA_ROOT` may be set instead. The SPADE runner reads `MATLAB_RUNTIME_ROOT` for MATLAB Runtime 8.5.
 
@@ -26,8 +23,8 @@ The analyses used separate implementation environments:
 | X-shift | Nolan Lab Vortex standalone, 29 June 2017 rev2, under Java 8 |
 | Deterministic-SPADE | Qiu Lab Windows implementation with MATLAB Runtime 8.5 |
 
-The observed Python package lists and R session are in `environments/`. These records describe the original method environments; the root `requirements.txt` covers figure, table and post hoc analysis.
+The Python package lists and R session information are in `environments/`. The root `requirements.txt` covers only the figure, table and post hoc analyses.
 
 X-shift and default PhenoGraph Louvain repeat runs do not expose controlled seeds. The selected Sony proof-of-concept analysis is not a claim of event-level equivalence to Sony's cloud service. Results for named methods refer to the implementation and conditions specified in the manuscript tables, not a common-budget method ranking.
 
-The run-specific scripts retain checks tied to the analysis inputs and parent outputs. Two early X-shift evaluations used revisions of `evaluate_xshift_cross_dataset.py` predating the current copy; their accepted numerical summaries are frozen under `analysis/inputs`, while the included script covers the later evaluated path. For a fresh raw-data rerun, create the parent outputs in experimental order and use the recorded method environments before executing dependent finalizers.
+For a full rerun, prepare the datasets first, use the recorded method environment and follow the stages implied by the script arguments. The processed inputs in `analysis/inputs` can be used when only the manuscript figures and tables are needed.

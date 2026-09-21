@@ -1,8 +1,4 @@
-"""Post hoc metric check of frozen contingency tables, 20 September 2026.
-No clustering is re-run. Primary overlap-count Hungarian matching is retained.
-Usage: python matching_sensitivity.py --source /path/to/extracted/source --out ./out
-Dependencies: numpy, pandas, scipy. The input archive contains all required tables.
-"""
+"""Compare overlap-based and F1-based matching using saved contingency tables."""
 
 from __future__ import annotations
 
@@ -189,7 +185,7 @@ def main() -> None:
         .reset_index()
     )
     summary.to_csv(ar.out / "matching_summary.csv", index=False)
-    # Confirm primary values against the frozen data plotted in Figure 3.
+    # Compare the reconstructed values with the data used in Figure 3.
     checks = []
     for f, method in [
         ("figure3a_flowsom_r_run_points.csv", "R_FlowSOM_full"),

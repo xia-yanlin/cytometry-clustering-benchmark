@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import os
 import platform
@@ -21,14 +20,6 @@ from sklearn.cluster import KMeans
 from sklearn.metrics import adjusted_rand_score
 
 TARGET = {"Nilsson_rare": "HSCs", "Mosmann_rare": "activated"}
-
-
-def sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        while block := handle.read(1024 * 1024):
-            digest.update(block)
-    return digest.hexdigest()
 
 
 def validate_separator(path: Path, registered: str) -> str:
@@ -105,7 +96,6 @@ def main() -> int:
                 "dataset": dataset,
                 "path": str(path),
                 "bytes": path.stat().st_size,
-                "sha256": sha256(path),
                 "cells": len(y),
                 "markers": len(markers),
                 "target": target,
@@ -151,7 +141,6 @@ def main() -> int:
                     "inertia": float(model.inertia_),
                     "iterations": int(model.n_iter_),
                     "prediction_file": str(prediction_path),
-                    "prediction_sha256": sha256(prediction_path),
                     **target_metrics,
                 }
                 rows.append(row)
@@ -164,7 +153,7 @@ def main() -> int:
 
     results = pd.DataFrame(rows)
     results.to_csv(args.output / "run_level_metrics.csv", index=False)
-    pd.DataFrame(inputs).to_csv(args.output / "input_manifest.csv", index=False)
+    pd.DataFrame(inputs).to_csv(args.output / "input_summary.csv", index=False)
     summary = (
         results.groupby(["dataset", "k"])
         .agg(
@@ -187,13 +176,9 @@ def main() -> int:
     manifest = {
         "experiment_id": args.experiment_id,
         "completed_utc": datetime.now(timezone.utc).isoformat(),
-        "reviewer_points": [12, 16, 17, 21, 31],
         "protocol": str(args.protocol.resolve()),
-        "protocol_sha256": sha256(args.protocol),
         "config": str(args.config.resolve()),
-        "config_sha256": sha256(args.config),
         "script": str(Path(__file__).resolve()),
-        "script_sha256": sha256(Path(__file__)),
         "python": sys.version,
         "python_executable": sys.executable,
         "platform": platform.platform(),
@@ -213,7 +198,7 @@ def main() -> int:
     lines = [
         f"# {args.experiment_id} Rare-population K-sensitivity experiment",
         "",
-        "This experiment addresses reviewer questions 12, 16, 17, 21, and 31. The report below presents numerical results without manuscript framing.",
+        "This experiment compares prespecified cluster counts on the two rare-population datasets.",
         "",
     ]
     for row in summary.itertuples(index=False):
@@ -233,7 +218,7 @@ def main() -> int:
             "- No single winner is selected across K values; the analysis asks only whether ARI and target-population metrics convey different information.",
         ]
     )
-    (args.output / "audit.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    (args.output / "summary.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     (args.output / "stdout.log").write_text(
         f"Completed {len(results)} runs across 2 datasets, 3 K values, {args.seeds} seeds.\n",
         encoding="utf-8",

@@ -273,7 +273,7 @@ def main():
         "correlation_endpoints": CORR_ENDPOINTS,
         "repeat_not_seed": True,
         "evaluation_scope": "all_events",
-        "undefined_correlation_policy": "record NaN rho/p; use p=1 placeholder in the preregistered Holm family of 10",
+        "undefined_correlation_policy": "record NaN rho/p; use the conservative value p=1 in the Holm family of 10",
         "bootstrap_seed": SEED,
         "bootstrap_replicates": BOOT,
         "checks_passed": int(cf.passed.sum()),

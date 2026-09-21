@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import os
 import platform
@@ -27,14 +26,6 @@ from sklearn.cluster import KMeans
 from sklearn.metrics import adjusted_rand_score
 
 TRUE_K = {"Levine_13dim": 24, "Levine_32dim": 14, "Samusik_01": 24}
-
-
-def sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        while block := handle.read(1024 * 1024):
-            digest.update(block)
-    return digest.hexdigest()
 
 
 def validate_separator(path: Path, registered: str) -> str:
@@ -147,7 +138,6 @@ def main() -> int:
                 "dataset": dataset,
                 "path": str(path),
                 "bytes": path.stat().st_size,
-                "sha256": sha256(path),
                 "total_cells": len(y),
                 "evaluated_cells": int(evaluable.sum()),
                 "markers": len(markers),
@@ -198,7 +188,6 @@ def main() -> int:
                     "inertia": float(model.inertia_),
                     "iterations": int(model.n_iter_),
                     "prediction_file": str(prediction_path),
-                    "prediction_sha256": sha256(prediction_path),
                 }
                 base.update(metrics)
                 run_rows.append(base)
@@ -224,7 +213,7 @@ def main() -> int:
     inputs = pd.DataFrame(input_rows)
     runs.to_csv(args.output / "run_level_metrics.csv", index=False)
     populations.to_csv(args.output / "population_level_metrics.csv", index=False)
-    inputs.to_csv(args.output / "input_manifest.csv", index=False)
+    inputs.to_csv(args.output / "input_summary.csv", index=False)
 
     paired = runs.pivot_table(
         index=["dataset", "seed"],
@@ -264,14 +253,11 @@ def main() -> int:
         "experiment_id": args.experiment_id,
         "completed_utc": datetime.now(timezone.utc).isoformat(),
         "research_question": "Effect of pre-clustering removal of unassigned cells",
-        "reviewer_points": [13, 21],
         "parameter_regime": "K=true sensitivity; not a deployable primary comparison",
         "preprocessing": "arcsinh only according to datasets.json; no feature standardization",
         "seeds": list(range(args.seeds)),
         "script": str(Path(__file__).resolve()),
-        "script_sha256": sha256(Path(__file__)),
         "config": str(args.config.resolve()),
-        "config_sha256": sha256(args.config),
         "python": sys.version,
         "python_executable": sys.executable,
         "platform": platform.platform(),
@@ -293,7 +279,7 @@ def main() -> int:
     lines = [
         f"# {args.experiment_id} Paired experiment on the inclusion of unlabeled cells",
         "",
-        "This experiment addresses reviewer question 13 and also supplies matched-seed evidence for question 21.",
+        "The analysis compares all-event fitting with labeled-event fitting while keeping the algorithm, cluster count and random seed fixed.",
         "",
         "This experiment uses K=true and is therefore an input-policy sensitivity analysis, not an unlabeled primary comparison.",
         "",
@@ -307,14 +293,14 @@ def main() -> int:
     lines.extend(
         [
             "",
-            "## Acceptance boundaries",
+            "## Notes",
             "",
             "- All runs use the same algorithm, K, parameters, seed, and evaluation cells; only the fitting set changes.",
             "- Each run saves all-event cluster labels, cluster centers, inertia, and iteration count.",
             "- This experiment quantifies the effect of label-based filtering; it does not determine the best algorithm or the manuscript narrative.",
         ]
     )
-    (args.output / "audit.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    (args.output / "summary.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(
         json.dumps(
             {"output": str(args.output), "runs": len(runs), "exit_code": 0}, ensure_ascii=False

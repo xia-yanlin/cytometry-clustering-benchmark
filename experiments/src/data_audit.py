@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import platform
 import sys
@@ -11,14 +10,6 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-
-
-def file_sha256(path: Path, chunk_size: int = 1024 * 1024) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        while block := handle.read(chunk_size):
-            digest.update(block)
-    return digest.hexdigest()
 
 
 def validate_separator(path: Path, registered: str) -> str:
@@ -121,14 +112,12 @@ def main() -> int:
                 f"{dataset}: expected {spec['expected_markers']} markers, observed {len(marker_cols)}"
             )
 
-        digest = file_sha256(path)
         inventory_rows.append(
             {
                 "dataset": dataset,
                 "path": str(path),
                 "filename": path.name,
                 "bytes": path.stat().st_size,
-                "sha256": digest,
                 "total_cells": total_cells,
                 "evaluated_cells": evaluated_cells,
                 "unassigned_cells": total_cells - evaluated_cells,
@@ -187,9 +176,7 @@ def main() -> int:
         "experiment_id": args.experiment_id,
         "started_utc": datetime.now(timezone.utc).isoformat(),
         "config": str(args.config.resolve()),
-        "config_sha256": file_sha256(args.config),
         "script": str(Path(__file__).resolve()),
-        "script_sha256": file_sha256(Path(__file__)),
         "python": sys.version,
         "python_executable": sys.executable,
         "platform": platform.platform(),
@@ -202,18 +189,16 @@ def main() -> int:
     report = [
         f"# {args.experiment_id} Data and label audit",
         "",
-        "This audit addresses reviewer questions 13, 14, and 34 and establishes the input baseline for all algorithm experiments.",
+        "This report summarizes the input files, marker columns and reference labels used by the experiments.",
         "",
-        f"Result: {'all preregistered structural checks passed' if not failures else 'one or more checks failed'}.",
+        f"Result: {'all expected structural checks passed' if not failures else 'one or more checks failed'}.",
         "",
         "## Automated checks",
         "",
     ]
     report.extend(
         [f"- {item}" for item in failures]
-        or [
-            "- All five files are present and their marker counts match the preregistered contract."
-        ]
+        or ["- All five files are present and their marker counts match the expected values."]
     )
     report.extend(
         [
@@ -221,11 +206,11 @@ def main() -> int:
             "## Scope and limitations",
             "",
             "- This experiment validates local files and input structure; it does not by itself prove that the upstream public source can be retrieved again.",
-            "- Source URLs, versions, and transformation chains require a separate provenance audit before questions 14 and 34 can be considered fully addressed.",
-            "- The effect of filtering unlabeled cells before clustering is evaluated in a subsequent paired experiment; this audit fixes only the counting and indexing policy.",
+            "- Source URLs, versions and transformation details should be recorded alongside the downloaded files.",
+            "- The effect of filtering unlabeled cells before clustering is evaluated in a separate paired experiment.",
         ]
     )
-    (output / "audit.md").write_text("\n".join(report) + "\n", encoding="utf-8")
+    (output / "summary.md").write_text("\n".join(report) + "\n", encoding="utf-8")
     exit_code = int(bool(failures))
     summary = {"output": str(output), "failures": failures, "exit_code": exit_code}
     (output / "stdout.log").write_text(

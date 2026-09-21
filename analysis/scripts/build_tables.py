@@ -243,8 +243,7 @@ def s2():
     b.loc[b.Record.eq("R13"), "Gap"] = (
         "Historical 20k graph; current all-event default-Louvain repeats are R28; no controlled seed"
     )
-    # The frozen EXP-036-R7 registry is historical provenance. Overlay accepted
-    # EXP-042–046 updates in the display table without modifying that input.
+    # Add the later EXP-042–046 runs to the earlier parameter registry.
     sp = b.Record.eq("R19")
     b.loc[
         sp,

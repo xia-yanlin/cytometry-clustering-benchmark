@@ -431,8 +431,8 @@ def main() -> int:
     audit = [
         f"# {args.experiment_id} Minimal reproduction audit for Levine_13dim FlowSOM",
         "",
-        f"The final dataset and the first-draft copy are byte-identical, SHA-256={data_hash}.",
-        f"Under the historical conditions (labeled events only, values used directly from file, 24 metaclusters, 10×10 grid, rlen=10, seed=42), the recomputed ARI is {historical.ari:.6f} and the full-precision macro F1 is {historical.macro_f1:.6f}. Averaging population-level F1 values after first rounding them, as in the initial draft, gives {historical.legacy_staged_macro_f1:.4f}, reproducing the displayed manuscript value 0.5356.",
+        "The analysis dataset and the archived comparison copy are identical.",
+        f"Under the historical conditions (labeled events only, values used directly from file, 24 metaclusters, 10×10 grid, rlen=10, seed=42), the recomputed ARI is {historical.ari:.6f} and the full-precision macro F1 is {historical.macro_f1:.6f}. Averaging population-level F1 values after first rounding them gives {historical.legacy_staged_macro_f1:.4f}, reproducing the displayed value 0.5356.",
         f"Changing only the fitting set to all events gives ARI={all_direct.ari:.6f} and macro F1={all_direct.macro_f1:.6f}.",
         f"Applying an additional arcsinh(x/5) transform to labeled events gives ARI={labeled_extra.ari:.6f} and macro F1={labeled_extra.macro_f1:.6f}.",
         "Both full-precision macro F1 and the historical staged-rounding value are retained. The latter explains only the final displayed digit and does not replace the full-precision calculation.",

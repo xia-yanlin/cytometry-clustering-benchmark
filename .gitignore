@@ -9,7 +9,6 @@ posthoc/output/
 analysis/figures/
 analysis/tables/
 experiments/runs/
-reproduction_runs/
 experiments/source_data/
 *.npy
 *.fcs

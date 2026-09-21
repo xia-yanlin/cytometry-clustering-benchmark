@@ -1,4 +1,4 @@
-"""Build exact panel-data CSVs for the three planned main figures.
+"""Prepare the data used in Figures 1–3.
 
 No plotting library is required. Rows retain their experimental unit and source ID.
 """
