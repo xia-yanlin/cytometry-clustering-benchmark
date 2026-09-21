@@ -1,6 +1,6 @@
 # Result-generation code
 
-`src/` contains the 55 source files retained for the final revision: 46 Python scripts and 9 R scripts. Together they cover data retrieval and identity checks, final method execution, external evaluation, sensitivity analyses, result aggregation and verification. The four display scripts under `analysis/scripts` and the two post hoc scripts under `posthoc/scripts` bring the repository-wide total to 61 source files.
+`src/` contains the 55 source files retained for the final revision: 46 Python scripts and 9 R scripts. Together they cover data retrieval and identity checks, final method execution, external evaluation, sensitivity analyses, result aggregation and verification. The four display scripts, two post hoc scripts and unified reproduction entry point bring the repository-wide total to 62 source files.
 
 This is a dependency-closed selection. Two helper modules omitted from the earlier release candidate (`analyze_flowsom_stability30.py` and `run_flowsom_nested_marker_dimension.py`) and two direct verification dependencies (`verify_hdcytodata_levine13_numeric_identity.R` and `verify_remaining_xshift_pipeline.py`) are included. The superseded `analyze_cell_inclusion.py` and the earlier PhenoGraph finalization snapshots are not included; the current finalizers no longer require those snapshots to be present.
 

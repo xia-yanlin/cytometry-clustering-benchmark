@@ -1,8 +1,8 @@
 # Cytometry clustering evaluation
 
-This repository is the reproducibility package for the revised manuscript *Reference annotations and analysis choices shape the evaluation of cytometry clustering*. Across five public datasets, the study examines how reference labels, event inclusion, parameter settings, matching rules and repeated runs affect external clustering scores.
+This repository is the reproducibility package for the revised manuscript *Reference annotations and analysis choices define what cytometry clustering benchmarks measure*. Across five public datasets, the study examines how reference labels, event inclusion, parameter settings, matching rules and repeated runs affect external clustering scores.
 
-The package is deliberately limited to the final revision. It contains 61 source files: 55 scripts for data provenance, final experiment execution, evaluation and result generation; four scripts for manuscript figures and tables; and two post hoc analysis scripts. Superseded implementations, interrupted run directories and temporary debugging code are not part of this release.
+The package is limited to the final revision. It contains 62 source files: 55 scripts for data provenance, final experiment execution, evaluation and result generation; four scripts for manuscript figures and tables; two post hoc analysis scripts; and one unified validation and reproduction entry point. Superseded implementations, interrupted run directories and temporary debugging code are not part of this release.
 
 ## Repository guide
 
@@ -14,11 +14,13 @@ The package is deliberately limited to the final revision. It contains 61 source
 | `experiments/src` | Fifty-five scripts used to retrieve or verify data and generate the final analysis results |
 | `experiments/config` | Dataset filenames, marker exclusions, transformations and label policies |
 | `experiments/environments` | Package and session records for the method-specific environments |
-| `CODE_MANIFEST.csv` | Exact inventory of the 61 retained source files and their roles |
+| `tools/reproduce.py` | Unified release, paper, post hoc, input and raw-data smoke checks |
+| `CODE_MANIFEST.csv` | Exact inventory of the 62 retained source files and their roles |
 | `RESULT_PROVENANCE.csv` | Mapping from every frozen manuscript input to its generating script |
 | `results/figures` | The selected PDFs for Figures 1–3 and S1–S6 |
 | `results/tables` | Machine-readable versions of the main and supplementary tables |
 | `data/datasets.csv` | Dataset sizes, transformations and reference-label rules |
+| `data/input_manifest.csv` | Exact filenames, byte sizes and SHA-256 hashes of the five raw inputs |
 
 The six display and post hoc scripts have distinct roles:
 
@@ -40,33 +42,32 @@ python -m venv .venv
 source .venv/bin/activate  # Windows PowerShell: .venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
 
-python analysis/scripts/build_main_figure_data.py
-python analysis/scripts/render_main_figures.py
-python analysis/scripts/render_supplement_figures.py
-python analysis/scripts/build_tables.py
+python tools/reproduce.py release
 ```
 
-The scripts write editable CSV, SVG, PDF, PNG and XLSX outputs under `analysis/figure_data`, `analysis/figures` and `analysis/tables`. Existing files are replaced only inside those output directories. The nine PDFs in `results/figures` are the selected manuscript layouts.
+This command validates the repository, rebuilds the editable CSV, SVG, PDF, PNG and XLSX outputs, reruns both post hoc analyses, and checks the deterministic outputs against the release. The nine PDFs in `results/figures` are the selected manuscript layouts.
 
-## Reproduce Table S7
+## Raw-data verification and smoke test
 
 ```bash
-python posthoc/scripts/matching_sensitivity.py --source posthoc/source --out posthoc/output
-python posthoc/scripts/objective_selection.py --source posthoc/source --out posthoc/output
+python tools/reproduce.py verify-inputs --data-root DATA_ROOT
+python -m pip install -r requirements-smoke.txt
+python tools/reproduce.py smoke --data-root DATA_ROOT --dataset Levine_13dim --seeds 1 --output reproduction_runs/levine13_smoke
 ```
 
-The first command evaluates 153 saved contingency tables and the second evaluates the same nine-setting FlowSOM grids reported in Table S6. They also write `TableS7A_matching.csv`, `TableS7B_ceiling.csv` and `TableS7C_objectives.csv`; these files reproduce the corresponding tables under `results/tables` exactly.
+The first command checks the original matrices against their released byte sizes and SHA-256 hashes. The second runs a real raw-matrix-to-metrics path for the paired event-inclusion analysis and compares Levine_13dim seed-0 metrics with the accepted run. With `--seeds 30`, it also checks the aggregate values against the released scientific summary.
 
-Both analyses are descriptive and post hoc. They do not rerun clustering, alter the primary scores or replace the prespecified analyses.
+See [REPRODUCIBILITY.md](REPRODUCIBILITY.md) for separate commands, expected outputs and the method-level boundary.
 
 ## Reproduction scope and data
 
 The five datasets are available through HDCytoData/ExperimentHub as EH2242, EH2240, EH2244, EH2248 and EH2250. The large event-level matrices are intentionally not duplicated in this repository. See [data/README.md](data/README.md) for filenames, transformations and label handling.
 
-There are two reproduction levels:
+There are three reproduction levels:
 
-1. The commands above rebuild the manuscript displays from the frozen analysis inputs without downloading the large event-level matrices.
-2. The selected scripts under [`experiments/src`](experiments/README.md) document and rerun the result-generating analyses from raw data or accepted parent outputs. These runs require their recorded Python, R, Java or MATLAB environments and, for some finalization scripts, the parent artifacts named in their command-line arguments.
+1. `python tools/reproduce.py release` rebuilds and verifies the manuscript evidence from the frozen analysis inputs.
+2. `verify-inputs` and `smoke` check exact raw-input identity and exercise a representative raw-data-to-metrics path.
+3. The selected scripts under [`experiments/src`](experiments/README.md) document and rerun method-specific analyses from raw data or accepted parent outputs. These runs require their recorded Python, R, Java or MATLAB environments and, for some finalization scripts, the parent artifacts named in their command-line arguments.
 
 Named implementations such as Vortex X-shift, FlowSOM, PhenoGraph and Deterministic-SPADE remain external projects. This repository provides the orchestration, evaluation and analysis code used in the revision; it does not relicense or replace those implementations.
 
@@ -74,7 +75,7 @@ Named implementations such as Vortex X-shift, FlowSOM, PhenoGraph and Determinis
 
 The automated checks perform the following steps on every push and pull request:
 
-1. verify formatting, imports, common Python bug patterns, Python syntax and R syntax across all 61 source files;
+1. verify the code inventory, dataset contract, result provenance, formatting, imports, common Python bug patterns, Python syntax and R syntax across all 62 source files;
 2. rebuild all figure data, figures and tables;
 3. confirm that the rebuilt figure-data CSVs have not drifted from the tracked versions;
 4. rerun both post hoc analyses; and
@@ -84,7 +85,7 @@ The root `requirements.txt` pins the direct dependencies for figure, table and p
 
 ## Citation
 
-If you use this repository, please cite the accompanying manuscript, *Reference annotations and analysis choices shape the evaluation of cytometry clustering*, and this software repository. Machine-readable citation metadata is available in [`CITATION.cff`](CITATION.cff). The archive DOI can be added after a release has been deposited.
+If you use this repository, please cite the accompanying manuscript, *Reference annotations and analysis choices define what cytometry clustering benchmarks measure*, and this software repository. Machine-readable citation metadata is available in [`CITATION.cff`](CITATION.cff). The archive DOI can be added after a release has been deposited.
 
 ## License
 

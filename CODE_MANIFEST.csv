@@ -5,6 +5,7 @@ analysis/scripts/render_main_figures.py,Python,display
 analysis/scripts/render_supplement_figures.py,Python,display
 posthoc/scripts/matching_sensitivity.py,Python,posthoc
 posthoc/scripts/objective_selection.py,Python,posthoc
+tools/reproduce.py,Python,validation
 experiments/src/analyze_flowsom_dimension_stability.py,Python,result_generation
 experiments/src/analyze_flowsom_multiobjective_pareto.py,Python,result_generation
 experiments/src/analyze_flowsom_r_full_event_extrapolation.py,Python,result_generation

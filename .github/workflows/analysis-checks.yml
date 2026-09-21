@@ -18,25 +18,15 @@ jobs:
         run: python -m pip install -r requirements-dev.txt
       - name: Check Python style and syntax
         run: |
-          ruff format --check analysis posthoc experiments
-          ruff check analysis posthoc experiments
-          python -m compileall -q analysis posthoc experiments
-          python -c "import csv,pathlib; rows=list(csv.DictReader(open('CODE_MANIFEST.csv', encoding='utf-8'))); actual={p.as_posix() for root in ('analysis/scripts','posthoc/scripts','experiments/src') for p in pathlib.Path(root).iterdir() if p.suffix in {'.py','.R'}}; listed={row['path'] for row in rows}; assert len(rows)==61 and actual==listed"
+          ruff format --check analysis posthoc experiments tools
+          ruff check analysis posthoc experiments tools
+          python -m compileall -q analysis posthoc experiments tools
+          python tools/reproduce.py verify-release
           ! git grep -nP '[\p{Han}]' -- '*.py' '*.R'
       - name: Rebuild figures and tables
-        run: |
-          python analysis/scripts/build_main_figure_data.py
-          python analysis/scripts/render_main_figures.py
-          python analysis/scripts/render_supplement_figures.py
-          python analysis/scripts/build_tables.py
-          git diff --exit-code -- analysis/figure_data
+        run: python tools/reproduce.py paper
       - name: Rebuild post hoc analyses
-        run: |
-          python posthoc/scripts/matching_sensitivity.py --source posthoc/source --out posthoc/output
-          python posthoc/scripts/objective_selection.py --source posthoc/source --out posthoc/output
-          cmp posthoc/output/TableS7A_matching.csv results/tables/TableS7A_matching.csv
-          cmp posthoc/output/TableS7B_ceiling.csv results/tables/TableS7B_ceiling.csv
-          cmp posthoc/output/TableS7C_objectives.csv results/tables/TableS7C_objectives.csv
+        run: python tools/reproduce.py posthoc
 
   r-syntax:
     runs-on: ubuntu-latest
