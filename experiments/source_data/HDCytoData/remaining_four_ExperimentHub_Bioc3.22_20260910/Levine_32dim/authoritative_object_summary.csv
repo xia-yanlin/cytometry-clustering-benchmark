@@ -1,7 +1,0 @@
-field,value
-dataset,Levine_32dim
-resource_id,EH2240
-rows,265627
-columns,39
-binary_order,column-major
-binary_type,little-endian float64

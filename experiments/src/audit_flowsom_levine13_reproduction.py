@@ -14,10 +14,8 @@ import anndata as ad
 import flowsom as fs
 import numpy as np
 import pandas as pd
-from flowsom.models import map_data_to_codes
-
 from evaluate_xshift_cross_dataset import evaluate_multiclass, metrics_are_valid
-
+from flowsom.models import map_data_to_codes
 
 EXPECTED_DATA_SHA = "941c6328909f0abf3bd18801fd9ca95779356b225ba422c1f2daf0d2a737f354"
 PAPER_ARI = 0.8936
@@ -33,9 +31,14 @@ def sha256(path: Path) -> str:
 
 
 def save_hashes(directory: Path) -> None:
-    paths = [path for path in directory.rglob("*") if path.is_file() and path.name != "artifact_hashes.json"]
+    paths = [
+        path
+        for path in directory.rglob("*")
+        if path.is_file() and path.name != "artifact_hashes.json"
+    ]
     (directory / "artifact_hashes.json").write_text(
-        json.dumps({str(path): sha256(path) for path in paths}, ensure_ascii=False, indent=2) + "\n",
+        json.dumps({str(path): sha256(path) for path in paths}, ensure_ascii=False, indent=2)
+        + "\n",
         encoding="utf-8",
     )
 
@@ -61,7 +64,15 @@ def main() -> int:
     qualification = args.qualification_run.resolve()
     protocol = args.protocol.resolve()
     output = args.output.resolve()
-    required = [data, archive_data, historical_loader, historical_flowsom, historical_summary, protocol, qualification / "run_manifest.json"]
+    required = [
+        data,
+        archive_data,
+        historical_loader,
+        historical_flowsom,
+        historical_summary,
+        protocol,
+        qualification / "run_manifest.json",
+    ]
     missing = [str(path) for path in required if not path.is_file()]
     if missing:
         raise FileNotFoundError(missing)
@@ -84,47 +95,138 @@ def main() -> int:
         ("historical_summary", historical_summary),
         ("protocol", protocol),
     ]:
-        source_inventory.append({"role": role, "path": str(path), "bytes": path.stat().st_size, "sha256": sha256(path)})
+        source_inventory.append(
+            {"role": role, "path": str(path), "bytes": path.stat().st_size, "sha256": sha256(path)}
+        )
     pd.DataFrame(source_inventory).to_csv(output / "source_inventory.csv", index=False)
 
     data_hash = sha256(data)
     archive_hash = sha256(archive_data)
     check("source", "formal_data_expected_hash", data_hash == EXPECTED_DATA_SHA, data_hash)
-    check("source", "archive_copy_byte_identical", data_hash == archive_hash and data.stat().st_size == archive_data.stat().st_size, f"formal={data_hash}; archive={archive_hash}")
+    check(
+        "source",
+        "archive_copy_byte_identical",
+        data_hash == archive_hash and data.stat().st_size == archive_data.stat().st_size,
+        f"formal={data_hash}; archive={archive_hash}",
+    )
 
     loader_text = historical_loader.read_text(encoding="utf-8")
     flowsom_text = historical_flowsom.read_text(encoding="utf-8")
-    check("source", "historical_loader_filters_before_return", "df = _filter_labeled(df, name)" in loader_text, "literal source audit")
-    check("source", "historical_loader_skips_levine_transform", "'Levine_13dim': None" in loader_text, "literal source audit")
-    check("source", "historical_flowsom_uses_true_k", "n_clusters=n_clusters" in flowsom_text and "k = TRUE_K[name]" in flowsom_text, "literal source audit")
-    check("source", "historical_flowsom_grid_seed", "xdim=10" in flowsom_text and "ydim=10" in flowsom_text and "seed=42" in flowsom_text, "literal source audit")
+    check(
+        "source",
+        "historical_loader_filters_before_return",
+        "df = _filter_labeled(df, name)" in loader_text,
+        "literal source audit",
+    )
+    check(
+        "source",
+        "historical_loader_skips_levine_transform",
+        "'Levine_13dim': None" in loader_text,
+        "literal source audit",
+    )
+    check(
+        "source",
+        "historical_flowsom_uses_true_k",
+        "n_clusters=n_clusters" in flowsom_text and "k = TRUE_K[name]" in flowsom_text,
+        "literal source audit",
+    )
+    check(
+        "source",
+        "historical_flowsom_grid_seed",
+        "xdim=10" in flowsom_text and "ydim=10" in flowsom_text and "seed=42" in flowsom_text,
+        "literal source audit",
+    )
 
     qualification_manifest_path = qualification / "run_manifest.json"
     qualification_manifest = json.loads(qualification_manifest_path.read_text(encoding="utf-8"))
-    check("source", "qualified_official_flowsom", qualification_manifest.get("all_checks_passed") is True and qualification_manifest.get("flowsom_version") == "0.2.2", json.dumps({key: qualification_manifest.get(key) for key in ("flowsom_version", "checks_passed", "checks_total")}, ensure_ascii=False))
+    check(
+        "source",
+        "qualified_official_flowsom",
+        qualification_manifest.get("all_checks_passed") is True
+        and qualification_manifest.get("flowsom_version") == "0.2.2",
+        json.dumps(
+            {
+                key: qualification_manifest.get(key)
+                for key in ("flowsom_version", "checks_passed", "checks_total")
+            },
+            ensure_ascii=False,
+        ),
+    )
 
     frame = pd.read_csv(data, sep="\t")
     markers = [column for column in frame.columns if column != "label"]
     labels_numeric = pd.to_numeric(frame["label"], errors="coerce").to_numpy()
-    evaluable = np.isfinite(labels_numeric) & (labels_numeric >= 1) & (labels_numeric <= 24) & (labels_numeric == np.floor(labels_numeric))
-    labels = np.array([str(int(value)) if ok else "__unassigned__" for value, ok in zip(labels_numeric, evaluable)])
+    evaluable = (
+        np.isfinite(labels_numeric)
+        & (labels_numeric >= 1)
+        & (labels_numeric <= 24)
+        & (labels_numeric == np.floor(labels_numeric))
+    )
+    labels = np.array(
+        [
+            str(int(value)) if ok else "__unassigned__"
+            for value, ok in zip(labels_numeric, evaluable, strict=False)
+        ]
+    )
     matrix_direct = frame[markers].to_numpy(np.float64)
     matrix_extra = np.arcsinh(matrix_direct / 5.0)
-    check("data", "dataset_contract", frame.shape == (167044, 14) and len(markers) == 13 and int(evaluable.sum()) == 81747 and len(np.unique(labels[evaluable])) == 24, f"shape={frame.shape}; markers={len(markers)}; evaluable={int(evaluable.sum())}; populations={len(np.unique(labels[evaluable]))}")
-    check("data", "finite_matrices", np.isfinite(matrix_direct).all() and np.isfinite(matrix_extra).all(), f"direct={matrix_direct.min()}..{matrix_direct.max()}; extra={matrix_extra.min()}..{matrix_extra.max()}")
+    check(
+        "data",
+        "dataset_contract",
+        frame.shape == (167044, 14)
+        and len(markers) == 13
+        and int(evaluable.sum()) == 81747
+        and len(np.unique(labels[evaluable])) == 24,
+        f"shape={frame.shape}; markers={len(markers)}; evaluable={int(evaluable.sum())}; populations={len(np.unique(labels[evaluable]))}",
+    )
+    check(
+        "data",
+        "finite_matrices",
+        np.isfinite(matrix_direct).all() and np.isfinite(matrix_extra).all(),
+        f"direct={matrix_direct.min()}..{matrix_direct.max()}; extra={matrix_extra.min()}..{matrix_extra.max()}",
+    )
 
     input_rows = []
     marker_rows = []
-    for transform_name, matrix in [("direct_file_values", matrix_direct), ("extra_asinh_cofactor5", matrix_extra)]:
-        for population_scope, mask in [("all_events", np.ones(len(matrix), dtype=bool)), ("evaluable_events", evaluable)]:
+    for transform_name, matrix in [
+        ("direct_file_values", matrix_direct),
+        ("extra_asinh_cofactor5", matrix_extra),
+    ]:
+        for population_scope, mask in [
+            ("all_events", np.ones(len(matrix), dtype=bool)),
+            ("evaluable_events", evaluable),
+        ]:
             subset = matrix[mask]
-            input_rows.append({"transform": transform_name, "scope": population_scope, "events": len(subset), "markers": subset.shape[1], "minimum": float(subset.min()), "maximum": float(subset.max()), "mean": float(subset.mean()), "sd": float(subset.std())})
+            input_rows.append(
+                {
+                    "transform": transform_name,
+                    "scope": population_scope,
+                    "events": len(subset),
+                    "markers": subset.shape[1],
+                    "minimum": float(subset.min()),
+                    "maximum": float(subset.max()),
+                    "mean": float(subset.mean()),
+                    "sd": float(subset.std()),
+                }
+            )
         for marker_index, marker in enumerate(markers):
             values = matrix[:, marker_index]
-            marker_rows.append({"transform": transform_name, "marker_index": marker_index, "marker": marker, "minimum": float(values.min()), "maximum": float(values.max()), "mean": float(values.mean()), "sd": float(values.std())})
+            marker_rows.append(
+                {
+                    "transform": transform_name,
+                    "marker_index": marker_index,
+                    "marker": marker,
+                    "minimum": float(values.min()),
+                    "maximum": float(values.max()),
+                    "mean": float(values.mean()),
+                    "sd": float(values.std()),
+                }
+            )
     pd.DataFrame(input_rows).to_csv(output / "input_stage_summary.csv", index=False)
     pd.DataFrame(marker_rows).to_csv(output / "marker_stage_summary.csv", index=False)
-    (output / "marker_order.json").write_text(json.dumps(markers, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    (output / "marker_order.json").write_text(
+        json.dumps(markers, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
 
     conditions = [
         ("labeled_direct_a", matrix_direct, evaluable),
@@ -186,22 +288,52 @@ def main() -> int:
         def run_check(name: str, passed: bool, detail: str) -> None:
             run_checks.append({"check": name, "passed": bool(passed), "detail": detail})
 
-        run_check("fit_shape", node_labels.shape == meta_labels.shape == distances.shape == (int(fit_mask.sum()),), f"fit={int(fit_mask.sum())}; arrays={node_labels.shape}")
-        run_check("model_shape", codes.shape == (100, 13) and node_to_meta.shape == (100,), f"codes={codes.shape}; mapping={node_to_meta.shape}")
-        run_check("node_mapping", np.array_equal(meta_labels, node_to_meta[node_labels.astype(int)]) and len(np.unique(node_to_meta)) == 24, f"node_metas={len(np.unique(node_to_meta))}; occupied={len(np.unique(meta_labels))}")
-        run_check("evaluation_shape", evaluation_labels.shape == (81747,), str(evaluation_labels.shape))
-        run_check("finite_outputs", np.isfinite(codes).all() and np.isfinite(distances).all() and np.all(distances >= 0), f"distance={float(distances.min())}..{float(distances.max())}")
-        run_check("evaluation_contract", metrics["n_evaluable_events"] == 81747 and metrics["n_true_populations"] == 24, f"events={metrics['n_evaluable_events']}; populations={metrics['n_true_populations']}")
+        run_check(
+            "fit_shape",
+            node_labels.shape == meta_labels.shape == distances.shape == (int(fit_mask.sum()),),
+            f"fit={int(fit_mask.sum())}; arrays={node_labels.shape}",
+        )
+        run_check(
+            "model_shape",
+            codes.shape == (100, 13) and node_to_meta.shape == (100,),
+            f"codes={codes.shape}; mapping={node_to_meta.shape}",
+        )
+        run_check(
+            "node_mapping",
+            np.array_equal(meta_labels, node_to_meta[node_labels.astype(int)])
+            and len(np.unique(node_to_meta)) == 24,
+            f"node_metas={len(np.unique(node_to_meta))}; occupied={len(np.unique(meta_labels))}",
+        )
+        run_check(
+            "evaluation_shape", evaluation_labels.shape == (81747,), str(evaluation_labels.shape)
+        )
+        run_check(
+            "finite_outputs",
+            np.isfinite(codes).all() and np.isfinite(distances).all() and np.all(distances >= 0),
+            f"distance={float(distances.min())}..{float(distances.max())}",
+        )
+        run_check(
+            "evaluation_contract",
+            metrics["n_evaluable_events"] == 81747 and metrics["n_true_populations"] == 24,
+            f"events={metrics['n_evaluable_events']}; populations={metrics['n_true_populations']}",
+        )
         run_check("metric_ranges", valid_metrics, metric_detail)
         pd.DataFrame(run_checks).to_csv(run_dir / "qualification_checks.csv", index=False)
-        check(condition, "run_contract", all(item["passed"] for item in run_checks), json.dumps(run_checks, ensure_ascii=False))
+        check(
+            condition,
+            "run_contract",
+            all(item["passed"] for item in run_checks),
+            json.dumps(run_checks, ensure_ascii=False),
+        )
 
         run_manifest = {
             "condition": condition,
             "fit_events": int(fit_mask.sum()),
             "evaluation_events": 81747,
             "markers": markers,
-            "transform": "extra_arcsinh_cofactor5" if "extra_asinh5" in condition else "direct_file_values",
+            "transform": "extra_arcsinh_cofactor5"
+            if "extra_asinh5" in condition
+            else "direct_file_values",
             "fit_policy": "evaluable_only" if condition.startswith("labeled") else "all_events",
             "parameters": {"xdim": 10, "ydim": 10, "rlen": 10, "n_clusters": 24, "seed": 42},
             "label_used_for_fit": bool(condition.startswith("labeled")),
@@ -212,59 +344,99 @@ def main() -> int:
             "checks_total": len(run_checks),
             "all_checks_passed": bool(all(item["passed"] for item in run_checks)),
         }
-        (run_dir / "run_manifest.json").write_text(json.dumps(run_manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        (run_dir / "run_manifest.json").write_text(
+            json.dumps(run_manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        )
         save_hashes(run_dir)
         core_outputs[condition] = arrays
-        legacy_staged_macro_f1 = round(float(np.mean([round(float(value), 4) for value in population["f1"]])), 4)
-        result_rows.append({
-            "condition": condition,
-            "fit_events": int(fit_mask.sum()),
-            "transform": run_manifest["transform"],
-            "fit_policy": run_manifest["fit_policy"],
-            "runtime_seconds": runtime,
-            "occupied_nodes": int(len(np.unique(node_labels))),
-            "occupied_metaclusters_fit": int(len(np.unique(meta_labels))),
-            "occupied_metaclusters_evaluable": int(len(np.unique(evaluation_labels))),
-            "ari": float(metrics["ari"]),
-            "macro_precision": float(metrics["macro_precision"]),
-            "macro_recall": float(metrics["macro_recall"]),
-            "macro_f1": float(metrics["macro_f1"]),
-            "legacy_staged_macro_f1": legacy_staged_macro_f1,
-            "hungarian_accuracy": float(metrics["hungarian_accuracy"]),
-            "delta_ari_from_paper": float(metrics["ari"] - PAPER_ARI),
-            "delta_macro_f1_from_paper": float(metrics["macro_f1"] - PAPER_MACRO_F1),
-        })
+        legacy_staged_macro_f1 = round(
+            float(np.mean([round(float(value), 4) for value in population["f1"]])), 4
+        )
+        result_rows.append(
+            {
+                "condition": condition,
+                "fit_events": int(fit_mask.sum()),
+                "transform": run_manifest["transform"],
+                "fit_policy": run_manifest["fit_policy"],
+                "runtime_seconds": runtime,
+                "occupied_nodes": int(len(np.unique(node_labels))),
+                "occupied_metaclusters_fit": int(len(np.unique(meta_labels))),
+                "occupied_metaclusters_evaluable": int(len(np.unique(evaluation_labels))),
+                "ari": float(metrics["ari"]),
+                "macro_precision": float(metrics["macro_precision"]),
+                "macro_recall": float(metrics["macro_recall"]),
+                "macro_f1": float(metrics["macro_f1"]),
+                "legacy_staged_macro_f1": legacy_staged_macro_f1,
+                "hungarian_accuracy": float(metrics["hungarian_accuracy"]),
+                "delta_ari_from_paper": float(metrics["ari"] - PAPER_ARI),
+                "delta_macro_f1_from_paper": float(metrics["macro_f1"] - PAPER_MACRO_F1),
+            }
+        )
         print(json.dumps(result_rows[-1], ensure_ascii=False), flush=True)
 
-    exact_keys = ["node_labels_fit", "metacluster_labels_fit", "som_codes", "node_to_metacluster", "metacluster_labels_evaluable"]
-    exact_repeat = {key: bool(np.array_equal(core_outputs["labeled_direct_a"][key], core_outputs["labeled_direct_b"][key])) for key in exact_keys}
-    check("reproduction", "historical_condition_same_seed_exact", all(exact_repeat.values()), json.dumps(exact_repeat))
+    exact_keys = [
+        "node_labels_fit",
+        "metacluster_labels_fit",
+        "som_codes",
+        "node_to_metacluster",
+        "metacluster_labels_evaluable",
+    ]
+    exact_repeat = {
+        key: bool(
+            np.array_equal(
+                core_outputs["labeled_direct_a"][key], core_outputs["labeled_direct_b"][key]
+            )
+        )
+        for key in exact_keys
+    }
+    check(
+        "reproduction",
+        "historical_condition_same_seed_exact",
+        all(exact_repeat.values()),
+        json.dumps(exact_repeat),
+    )
     results = pd.DataFrame(result_rows)
     results.to_csv(output / "condition_comparison.csv", index=False)
 
     historical = results[results.condition == "labeled_direct_a"].iloc[0]
-    check("reproduction", "paper_ari_four_decimal_match", round(float(historical.ari), 4) == PAPER_ARI, f"recomputed={historical.ari}; paper={PAPER_ARI}")
-    check("reproduction", "paper_macro_f1_legacy_staged_rounding_match", float(historical.legacy_staged_macro_f1) == PAPER_MACRO_F1, f"full_precision={historical.macro_f1}; legacy_staged={historical.legacy_staged_macro_f1}; paper={PAPER_MACRO_F1}")
+    check(
+        "reproduction",
+        "paper_ari_four_decimal_match",
+        round(float(historical.ari), 4) == PAPER_ARI,
+        f"recomputed={historical.ari}; paper={PAPER_ARI}",
+    )
+    check(
+        "reproduction",
+        "paper_macro_f1_legacy_staged_rounding_match",
+        float(historical.legacy_staged_macro_f1) == PAPER_MACRO_F1,
+        f"full_precision={historical.macro_f1}; legacy_staged={historical.legacy_staged_macro_f1}; paper={PAPER_MACRO_F1}",
+    )
 
     verification = pd.DataFrame(checks)
     verification.to_csv(output / "verification_checks.csv", index=False)
-    pip_check = subprocess.run([sys.executable, "-m", "pip", "check"], capture_output=True, text=True)
-    (output / "pip_check.txt").write_text((pip_check.stdout or "") + (pip_check.stderr or ""), encoding="utf-8")
-    freeze = subprocess.run([sys.executable, "-m", "pip", "freeze", "--all"], capture_output=True, text=True, check=True)
+    pip_check = subprocess.run(
+        [sys.executable, "-m", "pip", "check"], capture_output=True, text=True
+    )
+    (output / "pip_check.txt").write_text(
+        (pip_check.stdout or "") + (pip_check.stderr or ""), encoding="utf-8"
+    )
+    freeze = subprocess.run(
+        [sys.executable, "-m", "pip", "freeze", "--all"], capture_output=True, text=True, check=True
+    )
     (output / "environment_freeze.txt").write_text(freeze.stdout, encoding="utf-8")
     check_frame = pd.read_csv(output / "verification_checks.csv")
 
     all_direct = results[results.condition == "all_direct"].iloc[0]
     labeled_extra = results[results.condition == "labeled_extra_asinh5"].iloc[0]
     audit = [
-        f"# {args.experiment_id} Levine_13dim FlowSOM最小复现分叉定位",
+        f"# {args.experiment_id} Minimal reproduction audit for Levine_13dim FlowSOM",
         "",
-        f"正式数据与初稿复制件逐字节相同，SHA-256={data_hash}。",
-        f"历史条件（仅有标签事件、直接文件值、24元簇、10×10、rlen10、seed42）复算ARI={historical.ari:.6f}、全精度Macro F1={historical.macro_f1:.6f}；初稿先舍入逐群体F1再求均值时为{historical.legacy_staged_macro_f1:.4f}，复现稿件显示值0.5356。",
-        f"改为全部事件拟合而其他条件不变：ARI={all_direct.ari:.6f}、Macro F1={all_direct.macro_f1:.6f}。",
-        f"在仅有标签事件上额外执行arcsinh(x/5)：ARI={labeled_extra.ari:.6f}、Macro F1={labeled_extra.macro_f1:.6f}。",
-        "全精度Macro F1与历史分阶段舍入值均保留；后者只解释稿件末位显示差，不能替代全精度计算。",
-        "这些条件用于定位可复现分叉，不决定上游数据究竟应否再次转换；24元簇和仅标注拟合都含标签信息，不可作为新的无标签主比较制度。",
+        f"The final dataset and the first-draft copy are byte-identical, SHA-256={data_hash}.",
+        f"Under the historical conditions (labeled events only, values used directly from file, 24 metaclusters, 10×10 grid, rlen=10, seed=42), the recomputed ARI is {historical.ari:.6f} and the full-precision macro F1 is {historical.macro_f1:.6f}. Averaging population-level F1 values after first rounding them, as in the initial draft, gives {historical.legacy_staged_macro_f1:.4f}, reproducing the displayed manuscript value 0.5356.",
+        f"Changing only the fitting set to all events gives ARI={all_direct.ari:.6f} and macro F1={all_direct.macro_f1:.6f}.",
+        f"Applying an additional arcsinh(x/5) transform to labeled events gives ARI={labeled_extra.ari:.6f} and macro F1={labeled_extra.macro_f1:.6f}.",
+        "Both full-precision macro F1 and the historical staged-rounding value are retained. The latter explains only the final displayed digit and does not replace the full-precision calculation.",
+        "These conditions localize reproducibility divergences; they do not determine whether the upstream data should be transformed again. Both 24-metacluster fitting and labeled-only fitting use label information and cannot serve as a new unlabeled primary regime.",
     ]
     (output / "audit.md").write_text("\n".join(audit) + "\n", encoding="utf-8")
 
@@ -288,7 +460,9 @@ def main() -> int:
         "python_executable": sys.executable,
         "platform": platform.platform(),
     }
-    (output / "run_manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    (output / "run_manifest.json").write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
     save_hashes(output)
     print(json.dumps(manifest, ensure_ascii=False))
     return 0 if manifest["all_checks_passed"] and pip_check.returncode == 0 else 1

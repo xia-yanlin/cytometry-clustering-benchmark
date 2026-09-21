@@ -1,0 +1,20 @@
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "B"]
+ignore = ["B023"] # Loop-local check collectors are called before the loop advances.
+
+[tool.ruff.lint.per-file-ignores]
+"experiments/src/cell_inclusion_kmeans.py" = ["E402"]
+"experiments/src/evaluate_official_deterministic_spade_nilsson.py" = ["E402"]
+"experiments/src/rare_kmeans_experiment.py" = ["E402"]
+"experiments/src/run_flowsom_automatic_metaclustering_sensitivity.py" = ["E402"]
+"experiments/src/run_flowsom_rare_metacluster_regimes.py" = ["E402"]
+"experiments/src/verify_remaining_four_dataset_identity.py" = ["E402"]

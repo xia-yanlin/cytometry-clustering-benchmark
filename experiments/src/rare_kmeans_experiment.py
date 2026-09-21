@@ -20,7 +20,6 @@ import sklearn
 from sklearn.cluster import KMeans
 from sklearn.metrics import adjusted_rand_score
 
-
 TARGET = {"Nilsson_rare": "HSCs", "Mosmann_rare": "activated"}
 
 
@@ -37,7 +36,9 @@ def validate_separator(path: Path, registered: str) -> str:
         first = handle.readline()
     observed = "comma" if first.count(",") > first.count("\t") else "tab"
     if observed != registered:
-        raise ValueError(f"Separator mismatch: registered={registered}, observed={observed}, file={path}")
+        raise ValueError(
+            f"Separator mismatch: registered={registered}, observed={observed}, file={path}"
+        )
     return "," if observed == "comma" else "\t"
 
 
@@ -63,11 +64,19 @@ def score_target(y: np.ndarray, clusters: np.ndarray, target: str):
         recall = tp / (tp + fn) if tp + fn else 0.0
         f1 = 2 * precision * recall / (precision + recall) if precision + recall else 0.0
         f2 = 5 * precision * recall / (4 * precision + recall) if 4 * precision + recall else 0.0
-        candidates.append({
-            "selected_cluster": int(cluster), "tp": tp, "fp": fp, "fn": fn,
-            "precision": precision, "recall": recall, "f1": f1, "f2": f2,
-            "selected_cluster_cells": int(predicted.sum()),
-        })
+        candidates.append(
+            {
+                "selected_cluster": int(cluster),
+                "tp": tp,
+                "fp": fp,
+                "fn": fn,
+                "precision": precision,
+                "recall": recall,
+                "f1": f1,
+                "f2": f2,
+                "selected_cluster_cells": int(predicted.sum()),
+            }
+        )
     candidates.sort(key=lambda row: (-row["f1"], -row["recall"], row["selected_cluster"]))
     return candidates[0]
 
@@ -91,16 +100,26 @@ def main() -> int:
     for dataset, target in TARGET.items():
         spec = config["datasets"][dataset]
         path, X, y, markers = load_dataset(root, dataset, spec)
-        inputs.append({
-            "dataset": dataset, "path": str(path), "bytes": path.stat().st_size,
-            "sha256": sha256(path), "cells": len(y), "markers": len(markers),
-            "target": target, "target_cells": int(np.sum(y == target)),
-        })
+        inputs.append(
+            {
+                "dataset": dataset,
+                "path": str(path),
+                "bytes": path.stat().st_size,
+                "sha256": sha256(path),
+                "cells": len(y),
+                "markers": len(markers),
+                "target": target,
+                "target_cells": int(np.sum(y == target)),
+            }
+        )
         for k in (2, 10, 40):
             for seed in range(args.seeds):
                 model = KMeans(
-                    n_clusters=k, n_init=1, max_iter=args.max_iter,
-                    algorithm="lloyd", random_state=seed,
+                    n_clusters=k,
+                    n_init=1,
+                    max_iter=args.max_iter,
+                    algorithm="lloyd",
+                    random_state=seed,
                 )
                 started = time.perf_counter()
                 clusters = model.fit_predict(X)
@@ -119,12 +138,17 @@ def main() -> int:
                     "dataset": dataset,
                     "algorithm": "sklearn_KMeans",
                     "parameter_regime": f"fixed_K_{k}_sensitivity",
-                    "k": k, "seed": seed, "n_init": 1,
-                    "max_iter": args.max_iter, "total_cells": len(y),
-                    "target": target, "target_cells": int(np.sum(y == target)),
+                    "k": k,
+                    "seed": seed,
+                    "n_init": 1,
+                    "max_iter": args.max_iter,
+                    "total_cells": len(y),
+                    "target": target,
+                    "target_cells": int(np.sum(y == target)),
                     "target_prevalence": float(np.mean(y == target)),
                     "ari_raw_partition": float(adjusted_rand_score(y, clusters)),
-                    "runtime_seconds": runtime, "inertia": float(model.inertia_),
+                    "runtime_seconds": runtime,
+                    "inertia": float(model.inertia_),
                     "iterations": int(model.n_iter_),
                     "prediction_file": str(prediction_path),
                     "prediction_sha256": sha256(prediction_path),
@@ -141,19 +165,23 @@ def main() -> int:
     results = pd.DataFrame(rows)
     results.to_csv(args.output / "run_level_metrics.csv", index=False)
     pd.DataFrame(inputs).to_csv(args.output / "input_manifest.csv", index=False)
-    summary = results.groupby(["dataset", "k"]).agg(
-        seeds=("seed", "count"),
-        ari_mean=("ari_raw_partition", "mean"),
-        ari_sd=("ari_raw_partition", "std"),
-        precision_mean=("precision", "mean"),
-        precision_sd=("precision", "std"),
-        recall_mean=("recall", "mean"),
-        recall_sd=("recall", "std"),
-        f1_mean=("f1", "mean"),
-        f1_sd=("f1", "std"),
-        f2_mean=("f2", "mean"),
-        f2_sd=("f2", "std"),
-    ).reset_index()
+    summary = (
+        results.groupby(["dataset", "k"])
+        .agg(
+            seeds=("seed", "count"),
+            ari_mean=("ari_raw_partition", "mean"),
+            ari_sd=("ari_raw_partition", "std"),
+            precision_mean=("precision", "mean"),
+            precision_sd=("precision", "std"),
+            recall_mean=("recall", "mean"),
+            recall_sd=("recall", "std"),
+            f1_mean=("f1", "mean"),
+            f1_sd=("f1", "std"),
+            f2_mean=("f2", "mean"),
+            f2_sd=("f2", "std"),
+        )
+        .reset_index()
+    )
     summary.to_csv(args.output / "summary_metrics.csv", index=False)
 
     manifest = {
@@ -169,7 +197,11 @@ def main() -> int:
         "python": sys.version,
         "python_executable": sys.executable,
         "platform": platform.platform(),
-        "packages": {"numpy": np.__version__, "pandas": pd.__version__, "scikit-learn": sklearn.__version__},
+        "packages": {
+            "numpy": np.__version__,
+            "pandas": pd.__version__,
+            "scikit-learn": sklearn.__version__,
+        },
         "seeds": list(range(args.seeds)),
         "k_values": [2, 10, 40],
         "completed": True,
@@ -179,9 +211,9 @@ def main() -> int:
         json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
     lines = [
-        f"# {args.experiment_id} 稀有群体K敏感性实验",
+        f"# {args.experiment_id} Rare-population K-sensitivity experiment",
         "",
-        "对应审稿问题：12、16、17、21、31。以下仅报告数值，不进行论文包装。",
+        "This experiment addresses reviewer questions 12, 16, 17, 21, and 31. The report below presents numerical results without manuscript framing.",
         "",
     ]
     for row in summary.itertuples(index=False):
@@ -191,20 +223,26 @@ def main() -> int:
             f"R {row.recall_mean:.6f}±{row.recall_sd:.6f}; "
             f"F1 {row.f1_mean:.6f}±{row.f1_sd:.6f}; F2 {row.f2_mean:.6f}±{row.f2_sd:.6f}."
         )
-    lines.extend([
-        "",
-        "## 解释边界",
-        "",
-        "- 这是K-means的K敏感性实验，不代表其他算法。",
-        "- 最佳目标簇通过参考标签匹配，只用于外部评价，不能被称为可部署检测器。",
-        "- K之间不选出单一赢家；这里只检查ARI与目标群指标是否传递不同信息。",
-    ])
+    lines.extend(
+        [
+            "",
+            "## Interpretation limits",
+            "",
+            "- This is a K-sensitivity experiment for K-means and does not represent other algorithms.",
+            "- The best target cluster is matched using reference labels for external evaluation only; it is not a deployable detector.",
+            "- No single winner is selected across K values; the analysis asks only whether ARI and target-population metrics convey different information.",
+        ]
+    )
     (args.output / "audit.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     (args.output / "stdout.log").write_text(
         f"Completed {len(results)} runs across 2 datasets, 3 K values, {args.seeds} seeds.\n",
         encoding="utf-8",
     )
-    print(json.dumps({"output": str(args.output), "runs": len(results), "exit_code": 0}, ensure_ascii=False))
+    print(
+        json.dumps(
+            {"output": str(args.output), "runs": len(results), "exit_code": 0}, ensure_ascii=False
+        )
+    )
     return 0
 
 

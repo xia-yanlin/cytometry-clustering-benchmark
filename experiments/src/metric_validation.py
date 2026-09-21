@@ -37,7 +37,9 @@ def contingency(y_true: np.ndarray, y_pred: np.ndarray):
 def rectangular_alignment(y_true: np.ndarray, y_pred: np.ndarray):
     true_labels, pred_labels, matrix = contingency(y_true, y_pred)
     rows, cols = linear_sum_assignment(-matrix)
-    pred_to_true = {pred_labels[col]: true_labels[row] for row, col in zip(rows, cols)}
+    pred_to_true = {
+        pred_labels[col]: true_labels[row] for row, col in zip(rows, cols, strict=False)
+    }
     aligned = np.array([pred_to_true.get(value, "__extra_cluster__") for value in y_pred])
     return aligned, matrix, pred_to_true
 
@@ -52,7 +54,15 @@ def prf(y_true: np.ndarray, y_aligned: np.ndarray, label: str) -> dict:
     recall = tp / (tp + fn) if tp + fn else 0.0
     f1 = 2 * precision * recall / (precision + recall) if precision + recall else 0.0
     f2 = 5 * precision * recall / (4 * precision + recall) if 4 * precision + recall else 0.0
-    return {"tp": tp, "fp": fp, "fn": fn, "precision": precision, "recall": recall, "f1": f1, "f2": f2}
+    return {
+        "tp": tp,
+        "fp": fp,
+        "fn": fn,
+        "precision": precision,
+        "recall": recall,
+        "f1": f1,
+        "f2": f2,
+    }
 
 
 def boundary_tests() -> list[dict]:
@@ -62,45 +72,51 @@ def boundary_tests() -> list[dict]:
     y_pred = np.array(["p1", "p1", "p2", "p2", "p2", "p2"])
     aligned, matrix, mapping = rectangular_alignment(y_true, y_pred)
     scores = [prf(y_true, aligned, label)["f1"] for label in np.unique(y_true)]
-    tests.append({
-        "case": "K_pred_lt_K_true",
-        "k_true": 3,
-        "k_pred": 2,
-        "matrix_shape": str(matrix.shape),
-        "mapping_size": len(mapping),
-        "unmatched_true_populations": 3 - len(set(mapping.values())),
-        "macro_f1": float(np.mean(scores)),
-        "pass": len(mapping) == 2 and sum(score == 0 for score in scores) == 1,
-    })
+    tests.append(
+        {
+            "case": "K_pred_lt_K_true",
+            "k_true": 3,
+            "k_pred": 2,
+            "matrix_shape": str(matrix.shape),
+            "mapping_size": len(mapping),
+            "unmatched_true_populations": 3 - len(set(mapping.values())),
+            "macro_f1": float(np.mean(scores)),
+            "pass": len(mapping) == 2 and sum(score == 0 for score in scores) == 1,
+        }
+    )
 
     y_true = np.array(["A", "A", "B", "B"])
     y_pred = np.array(["p1", "p2", "p3", "p3"])
     aligned, matrix, mapping = rectangular_alignment(y_true, y_pred)
     scores = [prf(y_true, aligned, label)["f1"] for label in np.unique(y_true)]
-    tests.append({
-        "case": "K_pred_gt_K_true",
-        "k_true": 2,
-        "k_pred": 3,
-        "matrix_shape": str(matrix.shape),
-        "mapping_size": len(mapping),
-        "extra_predicted_clusters": 3 - len(mapping),
-        "macro_f1": float(np.mean(scores)),
-        "pass": len(mapping) == 2 and int(np.sum(aligned == "__extra_cluster__")) == 1,
-    })
+    tests.append(
+        {
+            "case": "K_pred_gt_K_true",
+            "k_true": 2,
+            "k_pred": 3,
+            "matrix_shape": str(matrix.shape),
+            "mapping_size": len(mapping),
+            "extra_predicted_clusters": 3 - len(mapping),
+            "macro_f1": float(np.mean(scores)),
+            "pass": len(mapping) == 2 and int(np.sum(aligned == "__extra_cluster__")) == 1,
+        }
+    )
 
     y_true = np.array(["target"] * 10 + ["other"] * 90)
     y_pred = np.array(["cluster_target"] * 10 + ["cluster_other"] * 90)
     aligned, _, _ = rectangular_alignment(y_true, y_pred)
     score = prf(y_true, aligned, "target")
-    tests.append({
-        "case": "rare_target_perfect",
-        "k_true": 2,
-        "k_pred": 2,
-        "matrix_shape": "(2, 2)",
-        "mapping_size": 2,
-        "target_f1": score["f1"],
-        "pass": score["precision"] == score["recall"] == score["f1"] == 1.0,
-    })
+    tests.append(
+        {
+            "case": "rare_target_perfect",
+            "k_true": 2,
+            "k_pred": 2,
+            "matrix_shape": "(2, 2)",
+            "mapping_size": 2,
+            "target_f1": score["f1"],
+            "pass": score["precision"] == score["recall"] == score["f1"] == 1.0,
+        }
+    )
     return tests
 
 
@@ -111,21 +127,27 @@ def background_split_simulation() -> list[dict]:
     y_true = np.array(["target"] * n_target + ["other"] * n_other)
     for splits in [1, 2, 4, 8, 16, 32, 64]:
         background = np.arange(n_other) % splits
-        y_pred = np.concatenate([
-            np.array(["target_cluster"] * n_target),
-            np.array([f"other_{value}" for value in background]),
-        ])
-        target_pred = np.array(["target" if value == "target_cluster" else "other" for value in y_pred])
+        y_pred = np.concatenate(
+            [
+                np.array(["target_cluster"] * n_target),
+                np.array([f"other_{value}" for value in background]),
+            ]
+        )
+        target_pred = np.array(
+            ["target" if value == "target_cluster" else "other" for value in y_pred]
+        )
         score = prf(y_true, target_pred, "target")
-        rows.append({
-            "background_clusters": splits,
-            "target_prevalence": n_target / (n_target + n_other),
-            "target_precision": score["precision"],
-            "target_recall": score["recall"],
-            "target_f1": score["f1"],
-            "target_f2": score["f2"],
-            "binary_ari_using_raw_clusters": adjusted_rand_score(y_true, y_pred),
-        })
+        rows.append(
+            {
+                "background_clusters": splits,
+                "target_prevalence": n_target / (n_target + n_other),
+                "target_precision": score["precision"],
+                "target_recall": score["recall"],
+                "target_f1": score["f1"],
+                "target_f2": score["f2"],
+                "binary_ari_using_raw_clusters": adjusted_rand_score(y_true, y_pred),
+            }
+        )
     return rows
 
 
@@ -138,7 +160,9 @@ def main() -> int:
     tests = boundary_tests()
     simulation = background_split_simulation()
     pd.DataFrame(tests).to_csv(args.output / "hungarian_boundary_tests.csv", index=False)
-    pd.DataFrame(simulation).to_csv(args.output / "rare_background_split_simulation.csv", index=False)
+    pd.DataFrame(simulation).to_csv(
+        args.output / "rare_background_split_simulation.csv", index=False
+    )
     failures = [row["case"] for row in tests if not row["pass"]]
     manifest = {
         "experiment_id": "EXP-002",
@@ -149,8 +173,10 @@ def main() -> int:
         "python_executable": sys.executable,
         "platform": platform.platform(),
         "packages": {
-            "numpy": np.__version__, "pandas": pd.__version__,
-            "scipy": scipy.__version__, "scikit-learn": sklearn.__version__,
+            "numpy": np.__version__,
+            "pandas": pd.__version__,
+            "scipy": scipy.__version__,
+            "scikit-learn": sklearn.__version__,
         },
         "failures": failures,
     }
@@ -160,23 +186,23 @@ def main() -> int:
     first = simulation[0]
     last = simulation[-1]
     report = [
-        "# EXP-002 指标与匹配规则验证",
+        "# EXP-002 Validation of metrics and matching rules",
         "",
-        "对应审稿问题：12、15、16、17。",
+        "This validation addresses reviewer questions 12, 15, 16, and 17.",
         "",
-        f"边界测试：{len(tests) - len(failures)}/{len(tests)} 通过。",
+        f"Boundary tests passed: {len(tests) - len(failures)}/{len(tests)}.",
         "",
-        "## 背景拆分模拟",
+        "## Background-splitting simulation",
         "",
-        f"目标群体分类始终完美（precision=recall=F1={first['target_f1']:.3f}），",
-        f"但把同一背景从 1 个簇拆成 64 个簇后，原始聚类 ARI 从 {first['binary_ari_using_raw_clusters']:.6f} 变为 {last['binary_ari_using_raw_clusters']:.6f}。",
+        f"Target-population classification remains perfect (precision=recall=F1={first['target_f1']:.3f}),",
+        f"but splitting the same background from 1 cluster into 64 changes the raw-cluster ARI from {first['binary_ari_using_raw_clusters']:.6f} to {last['binary_ari_using_raw_clusters']:.6f}.",
         "",
-        "这证明在稀有群体检测任务中，ARI 会同时惩罚背景内部的异质性划分，不能替代目标群体 precision/recall/F1/F2。",
+        "This demonstrates that, in a rare-population detection task, ARI also penalizes heterogeneous subdivision within the background and therefore cannot replace target-population precision, recall, F1, or F2.",
         "",
-        "## 完善度边界",
+        "## Validation scope",
         "",
-        "- 问题 15 的边界计分规则可在单元层面达标，但仍需接入真实算法流水线。",
-        "- 问题 12、16、17 目前只完成机制和指标实现验证；必须在两个真实稀有数据集上运行后再评估是否达标。",
+        "- The boundary-scoring rule for question 15 passes unit-level checks but must still be integrated into real algorithm pipelines.",
+        "- For questions 12, 16, and 17, only the mechanism and metric implementation are validated here; adequacy must be assessed after running both real rare-population datasets.",
     ]
     (args.output / "audit.md").write_text("\n".join(report) + "\n", encoding="utf-8")
     exit_code = int(bool(failures))

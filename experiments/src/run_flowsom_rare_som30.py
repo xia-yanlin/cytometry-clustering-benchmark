@@ -18,7 +18,6 @@ import pandas as pd
 from flowsom.models import map_data_to_codes
 from loguru import logger
 
-
 DATASETS = {
     "Nilsson_rare": {
         "rows": 44_140,
@@ -74,35 +73,52 @@ def rebuild_index(output: Path) -> pd.DataFrame:
             manifest_path = run_dir / "run_manifest.json"
             if manifest_path.is_file():
                 manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-                rows.append({
-                    "dataset": dataset,
-                    "seed": seed,
-                    "runtime_seconds": manifest["runtime_seconds"],
-                    "occupied_nodes": manifest["occupied_nodes"],
-                    "checks_passed": manifest["checks_passed"],
-                    "checks_total": manifest["checks_total"],
-                    "all_checks_passed": manifest["all_checks_passed"],
-                })
+                rows.append(
+                    {
+                        "dataset": dataset,
+                        "seed": seed,
+                        "runtime_seconds": manifest["runtime_seconds"],
+                        "occupied_nodes": manifest["occupied_nodes"],
+                        "checks_passed": manifest["checks_passed"],
+                        "checks_total": manifest["checks_total"],
+                        "all_checks_passed": manifest["all_checks_passed"],
+                    }
+                )
     frame = pd.DataFrame(rows)
     frame.to_csv(output / "run_index.csv", index=False)
     return frame
 
 
-def write_progress(output: Path, protocol: Path, config: Path, qualification: Path, failed_run: str | None = None) -> dict[str, object]:
+def write_progress(
+    output: Path, protocol: Path, config: Path, qualification: Path, failed_run: str | None = None
+) -> dict[str, object]:
     index = rebuild_index(output)
     passed = int(index.all_checks_passed.astype(bool).sum()) if len(index) else 0
     progress = {
         "experiment_id": "EXP-033A",
         "updated_utc": datetime.now(timezone.utc).isoformat(),
-        "status": "failed" if failed_run else ("complete" if len(index) == passed == 60 else "in_progress"),
-        "protocol": str(protocol), "protocol_sha256": sha256(protocol),
-        "script": str(Path(__file__).resolve()), "script_sha256": sha256(Path(__file__).resolve()),
-        "config": str(config), "config_sha256": sha256(config),
-        "qualification": str(qualification), "qualification_manifest_sha256": sha256(qualification / "run_manifest.json"),
-        "datasets": list(DATASETS), "seeds": list(SEEDS), "training_size": TRAINING_SIZE,
-        "training_sample_seed": TRAINING_SAMPLE_SEED, "grid_side": GRID_SIDE, "rlen": RLEN,
-        "expected_runs": 60, "completed_runs": len(index), "passed_runs": passed,
-        "failed_run": failed_run, "all_runs_complete_and_passed": len(index) == passed == 60 and failed_run is None,
+        "status": "failed"
+        if failed_run
+        else ("complete" if len(index) == passed == 60 else "in_progress"),
+        "protocol": str(protocol),
+        "protocol_sha256": sha256(protocol),
+        "script": str(Path(__file__).resolve()),
+        "script_sha256": sha256(Path(__file__).resolve()),
+        "config": str(config),
+        "config_sha256": sha256(config),
+        "qualification": str(qualification),
+        "qualification_manifest_sha256": sha256(qualification / "run_manifest.json"),
+        "datasets": list(DATASETS),
+        "seeds": list(SEEDS),
+        "training_size": TRAINING_SIZE,
+        "training_sample_seed": TRAINING_SAMPLE_SEED,
+        "grid_side": GRID_SIDE,
+        "rlen": RLEN,
+        "expected_runs": 60,
+        "completed_runs": len(index),
+        "passed_runs": passed,
+        "failed_run": failed_run,
+        "all_runs_complete_and_passed": len(index) == passed == 60 and failed_run is None,
     }
     write_json(output / "progress_manifest.json", progress)
     return progress
@@ -115,13 +131,23 @@ def main() -> int:
     parser.add_argument("--qualification", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
-    config, protocol, qualification, output = (args.config.resolve(), args.protocol.resolve(), args.qualification.resolve(), args.output.resolve())
+    config, protocol, qualification, output = (
+        args.config.resolve(),
+        args.protocol.resolve(),
+        args.qualification.resolve(),
+        args.output.resolve(),
+    )
     q_manifest = json.loads((qualification / "run_manifest.json").read_text(encoding="utf-8"))
-    if q_manifest.get("all_checks_passed") is not True or importlib.metadata.version("flowsom") != "0.2.2":
+    if (
+        q_manifest.get("all_checks_passed") is not True
+        or importlib.metadata.version("flowsom") != "0.2.2"
+    ):
         raise RuntimeError("EXP-013-R2 qualified FlowSOM 0.2.2 environment required")
     if output.exists():
         previous = json.loads((output / "progress_manifest.json").read_text(encoding="utf-8"))
-        if previous.get("protocol_sha256") != sha256(protocol) or previous.get("script_sha256") != sha256(Path(__file__).resolve()):
+        if previous.get("protocol_sha256") != sha256(protocol) or previous.get(
+            "script_sha256"
+        ) != sha256(Path(__file__).resolve()):
             raise RuntimeError("Resume contract differs from current protocol or source")
     else:
         (output / "runs").mkdir(parents=True)
@@ -130,7 +156,10 @@ def main() -> int:
 
     for dataset, contract in DATASETS.items():
         source, markers, matrix, labels = load_data(config, dataset)
-        if sha256(source) != contract["sha256"] or matrix.shape != (contract["rows"], contract["markers"]):
+        if sha256(source) != contract["sha256"] or matrix.shape != (
+            contract["rows"],
+            contract["markers"],
+        ):
             raise ValueError(f"input contract failed for {dataset}")
         if int(np.sum(labels == contract["target"])) != contract["target_events"]:
             raise ValueError(f"target count failed for {dataset}")
@@ -142,9 +171,19 @@ def main() -> int:
             marker_path.write_text("\n".join(markers) + "\n", encoding="utf-8")
         if not index_path.exists():
             rng = np.random.default_rng(TRAINING_SAMPLE_SEED)
-            np.save(index_path, np.sort(rng.choice(len(matrix), size=TRAINING_SIZE, replace=False)).astype(np.int64))
+            np.save(
+                index_path,
+                np.sort(rng.choice(len(matrix), size=TRAINING_SIZE, replace=False)).astype(
+                    np.int64
+                ),
+            )
         training_indices = np.load(index_path, allow_pickle=False)
-        if training_indices.shape != (TRAINING_SIZE,) or len(np.unique(training_indices)) != TRAINING_SIZE or training_indices.min() < 0 or training_indices.max() >= len(matrix):
+        if (
+            training_indices.shape != (TRAINING_SIZE,)
+            or len(np.unique(training_indices)) != TRAINING_SIZE
+            or training_indices.min() < 0
+            or training_indices.max() >= len(matrix)
+        ):
             raise ValueError(f"training index contract failed for {dataset}")
         training_matrix = matrix[training_indices]
 
@@ -159,8 +198,12 @@ def main() -> int:
                 started = time.perf_counter()
                 model = fs.FlowSOM(
                     ad.AnnData(X=pd.DataFrame(training_matrix, columns=markers)),
-                    cols_to_use=markers, n_clusters=40, xdim=GRID_SIDE, ydim=GRID_SIDE,
-                    rlen=RLEN, seed=seed,
+                    cols_to_use=markers,
+                    n_clusters=40,
+                    xdim=GRID_SIDE,
+                    ydim=GRID_SIDE,
+                    rlen=RLEN,
+                    seed=seed,
                 )
                 codes = np.asarray(model.model.codes, dtype=np.float64)
                 node_float, distances = map_data_to_codes(matrix, codes)
@@ -171,52 +214,119 @@ def main() -> int:
                 np.save(run_dir / "node_labels_all_events.npy", nodes)
                 np.save(run_dir / "bmu_distances_all_events.npy", distances)
                 checks: list[dict[str, object]] = []
+
                 def check(name: str, passed: bool, detail: str) -> None:
                     checks.append({"check": name, "passed": bool(passed), "detail": detail})
+
                 check("source_hash", sha256(source) == contract["sha256"], sha256(source))
-                check("marker_order", marker_path.read_text(encoding="utf-8").splitlines() == markers, f"markers={len(markers)}")
-                check("training_indices", training_indices.shape == (TRAINING_SIZE,) and len(np.unique(training_indices)) == TRAINING_SIZE, sha256(index_path))
+                check(
+                    "marker_order",
+                    marker_path.read_text(encoding="utf-8").splitlines() == markers,
+                    f"markers={len(markers)}",
+                )
+                check(
+                    "training_indices",
+                    training_indices.shape == (TRAINING_SIZE,)
+                    and len(np.unique(training_indices)) == TRAINING_SIZE,
+                    sha256(index_path),
+                )
                 check("code_shape", codes.shape == (100, contract["markers"]), str(codes.shape))
-                check("event_shape", nodes.shape == distances.shape == (contract["rows"],), str(nodes.shape))
-                check("node_range", nodes.min() >= 0 and nodes.max() < 100, f"{nodes.min()}-{nodes.max()}")
-                check("finite", np.isfinite(codes).all() and np.isfinite(distances).all() and np.all(distances >= 0), f"distance={distances.min()}-{distances.max()}")
-                check("label_permission", True, "labels used only before run for target-count input validation")
+                check(
+                    "event_shape",
+                    nodes.shape == distances.shape == (contract["rows"],),
+                    str(nodes.shape),
+                )
+                check(
+                    "node_range",
+                    nodes.min() >= 0 and nodes.max() < 100,
+                    f"{nodes.min()}-{nodes.max()}",
+                )
+                check(
+                    "finite",
+                    np.isfinite(codes).all()
+                    and np.isfinite(distances).all()
+                    and np.all(distances >= 0),
+                    f"distance={distances.min()}-{distances.max()}",
+                )
+                check(
+                    "label_permission",
+                    True,
+                    "labels used only before run for target-count input validation",
+                )
                 checks_frame = pd.DataFrame(checks)
                 checks_frame.to_csv(run_dir / "checks.csv", index=False)
                 manifest = {
-                    "experiment_id": "EXP-033A", "dataset": dataset, "seed": seed,
+                    "experiment_id": "EXP-033A",
+                    "dataset": dataset,
+                    "seed": seed,
                     "completed_utc": datetime.now(timezone.utc).isoformat(),
-                    "source": str(source), "source_sha256": sha256(source),
-                    "protocol": str(protocol), "protocol_sha256": sha256(protocol),
-                    "script": str(Path(__file__).resolve()), "script_sha256": sha256(Path(__file__).resolve()),
-                    "qualification": str(qualification), "qualification_manifest_sha256": sha256(qualification / "run_manifest.json"),
-                    "training_indices": str(index_path), "training_indices_sha256": sha256(index_path),
-                    "training_size": TRAINING_SIZE, "training_sample_seed": TRAINING_SAMPLE_SEED,
+                    "source": str(source),
+                    "source_sha256": sha256(source),
+                    "protocol": str(protocol),
+                    "protocol_sha256": sha256(protocol),
+                    "script": str(Path(__file__).resolve()),
+                    "script_sha256": sha256(Path(__file__).resolve()),
+                    "qualification": str(qualification),
+                    "qualification_manifest_sha256": sha256(qualification / "run_manifest.json"),
+                    "training_indices": str(index_path),
+                    "training_indices_sha256": sha256(index_path),
+                    "training_size": TRAINING_SIZE,
+                    "training_sample_seed": TRAINING_SAMPLE_SEED,
                     "fit_policy": "fixed_unlabeled_full_event_sample_then_map_all_events",
                     "label_used_for_sampling_fit_or_parameter_selection": False,
                     "python_flowsom_constructor_n_clusters_ignored_downstream": 40,
-                    "grid_side": GRID_SIDE, "rlen": RLEN, "runtime_seconds": runtime,
+                    "grid_side": GRID_SIDE,
+                    "rlen": RLEN,
+                    "runtime_seconds": runtime,
                     "occupied_nodes": int(np.unique(nodes).size),
-                    "checks_passed": int(checks_frame.passed.sum()), "checks_total": len(checks_frame),
+                    "checks_passed": int(checks_frame.passed.sum()),
+                    "checks_total": len(checks_frame),
                     "all_checks_passed": bool(checks_frame.passed.all()),
-                    "python": sys.version, "python_executable": sys.executable,
-                    "flowsom": importlib.metadata.version("flowsom"), "numpy": np.__version__, "pandas": pd.__version__,
+                    "python": sys.version,
+                    "python_executable": sys.executable,
+                    "flowsom": importlib.metadata.version("flowsom"),
+                    "numpy": np.__version__,
+                    "pandas": pd.__version__,
                     "platform": platform.platform(),
                 }
                 write_json(run_dir / "run_manifest.json", manifest)
-                write_json(run_dir / "artifact_hashes.json", {p.name: sha256(p) for p in run_dir.iterdir() if p.is_file()})
+                write_json(
+                    run_dir / "artifact_hashes.json",
+                    {p.name: sha256(p) for p in run_dir.iterdir() if p.is_file()},
+                )
                 if not manifest["all_checks_passed"]:
                     raise RuntimeError("run checks failed")
-                print(json.dumps({"dataset": dataset, "seed": seed, "runtime": runtime, "occupied_nodes": manifest["occupied_nodes"], "checks": "8/8"}, ensure_ascii=False), flush=True)
+                print(
+                    json.dumps(
+                        {
+                            "dataset": dataset,
+                            "seed": seed,
+                            "runtime": runtime,
+                            "occupied_nodes": manifest["occupied_nodes"],
+                            "checks": "8/8",
+                        },
+                        ensure_ascii=False,
+                    ),
+                    flush=True,
+                )
             except Exception as exc:
-                (run_dir / "failure_traceback.txt").write_text(traceback.format_exc(), encoding="utf-8")
-                write_json(run_dir / "failure.json", {"exception": repr(exc), "scientific_output_eligible": False})
-                write_progress(output, protocol, config, qualification, str(run_dir.relative_to(output)))
+                (run_dir / "failure_traceback.txt").write_text(
+                    traceback.format_exc(), encoding="utf-8"
+                )
+                write_json(
+                    run_dir / "failure.json",
+                    {"exception": repr(exc), "scientific_output_eligible": False},
+                )
+                write_progress(
+                    output, protocol, config, qualification, str(run_dir.relative_to(output))
+                )
                 raise
             write_progress(output, protocol, config, qualification)
     final = write_progress(output, protocol, config, qualification)
     artifacts = [p for p in output.rglob("*") if p.is_file() and p.name != "artifact_hashes.json"]
-    write_json(output / "artifact_hashes.json", {str(p.relative_to(output)): sha256(p) for p in artifacts})
+    write_json(
+        output / "artifact_hashes.json", {str(p.relative_to(output)): sha256(p) for p in artifacts}
+    )
     print(json.dumps(final, ensure_ascii=False), flush=True)
     return 0 if final["all_runs_complete_and_passed"] else 1
 

@@ -1,0 +1,39 @@
+analysis_input,manuscript_use,generator_script
+metric_simulation,Figure 1A,experiments/src/metric_validation.py
+matching_boundary,Metric-matching boundary validation,experiments/src/metric_validation.py
+xshift_dataset_summary,Figures 1B-1C and Table S4,experiments/src/verify_xshift_cross_dataset_evaluations.py
+xshift_levine32_population,Figure 1D Figure S1 and Table S3,experiments/src/evaluate_xshift_cross_dataset.py
+flowsom_event_inclusion,Figure 2A,experiments/src/audit_flowsom_levine13_reproduction.py
+flowsom_auto_multiclass,Figures 2B1-2B2 Figure S3 and Table S6 AutoK,experiments/src/run_flowsom_automatic_metaclustering_sensitivity.py
+flowsom_auto_multiclass_runs,Figures 2B1-2B2 seed points,experiments/src/run_flowsom_automatic_metaclustering_sensitivity.py
+flowsom_rare_regimes,Table S4,experiments/src/run_flowsom_rare_metacluster_regimes.py
+gmm_rare_regimes,Figures 1B-1C Figure S3 and Table S4,experiments/src/analyze_gmm_rare_k_sensitivity.py
+gmm_rare_runs,Figures 1B-1C seed points,experiments/src/run_gmm_rare_k_sensitivity.py
+phenograph_rare_summary,Table S4,experiments/src/analyze_phenograph_rare_full_event_louvain30.py
+sony_regime_comparison,Implementation context,experiments/src/run_sony_blflowsom_unlabeled_metaclustering.py
+xshift_k_sensitivity,Figure 2C and Figure S3,experiments/src/finalize_exp043_mode_aware.py
+xshift_nilsson_published_k60,Figure 2C published-parameter anchor,experiments/src/evaluate_xshift_cross_dataset.py
+xshift_nilsson_auto,Figure 2C automatic-parameter anchor,experiments/src/evaluate_xshift_cross_dataset.py
+spade_nilsson_evaluation,Table S4 and Table 2 method scope,experiments/src/evaluate_official_deterministic_spade_nilsson.py
+xshift_nilsson_repeat_pairs,Figure 3C,experiments/src/finalize_xshift_nilsson_fixedK20_30repeat.py
+xshift_samusik_repeat_pairs,Figure 3C,experiments/src/run_xshift_samusik_fixedK20_30repeat.py
+xshift_levine13_repeat_pairs,Figure 3C,experiments/src/run_xshift_multiclass_fixedK20_30repeat.py
+xshift_levine32_repeat_pairs,Figure 3C,experiments/src/run_xshift_mst_bypass_fixedK20_30repeat.py
+xshift_mosmann_repeat_pairs,Figure 3C,experiments/src/run_remaining_xshift_pipeline.py
+stability_40cells,Figure S4 and Table S5 Stability,experiments/src/audit_cross_method_stability.py
+stability_40tests,Figure S4 and Table S5 Holm,experiments/src/audit_cross_method_stability.py
+phenograph_full_run_points,Figure 3B and Table S5 Stability,experiments/src/analyze_phenograph_multipop_full_event_louvain30.py
+phenograph_full_summary,Key-claim verification,experiments/src/analyze_phenograph_multipop_full_event_louvain30.py
+phenograph_full_partition,Figure 3C and Table S5 Stability,experiments/src/analyze_phenograph_multipop_full_event_louvain30.py
+flowsom_r_full_run_points,Figure 3A and Table S5 Stability,experiments/src/analyze_flowsom_r_full_event_extrapolation.py
+flowsom_r_full_summary,Verification summary,experiments/src/analyze_flowsom_r_full_event_extrapolation.py
+flowsom_r_full_partition,Figure 3C and Table S5 Stability,experiments/src/analyze_flowsom_r_full_event_extrapolation.py
+flowsom_factorial_contrasts,Parameter-context verification,experiments/src/analyze_verify_flowsom_factorial_cross_dataset.py
+flowsom_pareto,Figure S2 and Table S6 Grid,experiments/src/analyze_flowsom_multiobjective_pareto.py
+label_perturbation,Figure S5 and Table S6 Labels,experiments/src/finalize_reference_label_uncertainty_sensitivity.py
+marker_dimension,Figure S6 and Table S6 Markers,experiments/src/analyze_flowsom_dimension_stability.py
+multimodality_power,Figure S4 and Table S5 Power,experiments/src/replicate_multimodality_power.py
+method_identity,Table 2 and Table S2 Methods,experiments/src/build_method_identity_matrix.py
+parameter_regimes,Table S2 Regimes,experiments/src/increment_parameter_regime_registry_xshift_levine32.py
+levine13_identity,Table 1 and Table S1,experiments/src/verify_levine13_authoritative_provenance.py
+other4_identity,Table 1 and Table S1,experiments/src/verify_remaining_four_dataset_identity.py

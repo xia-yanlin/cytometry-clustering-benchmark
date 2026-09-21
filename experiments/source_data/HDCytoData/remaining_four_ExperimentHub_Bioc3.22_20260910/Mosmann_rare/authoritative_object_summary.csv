@@ -1,7 +1,0 @@
-field,value
-dataset,Mosmann_rare
-resource_id,EH2250
-rows,396460
-columns,22
-binary_order,column-major
-binary_type,little-endian float64

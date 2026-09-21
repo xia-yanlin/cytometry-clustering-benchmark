@@ -12,20 +12,24 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from run_official_xshift import read_fcs
 from scipy import sparse
 from scipy.io import loadmat, savemat
 from sklearn.metrics import adjusted_rand_score
-
-from run_official_xshift import read_fcs
-
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKSPACE = ROOT.parent
 RUN_ROOT = ROOT / "runs" / "EXP-044_deterministic_spade_official_endpoint_20260915"
 PROTOCOL = ROOT / "protocols" / "EXP-044_deterministic_spade_official_endpoint_preregistered.md"
-PROTOCOL_R1 = ROOT / "protocols" / "EXP-044-R1_deterministic_spade_fcs_compatibility_preregistered.md"
-PROTOCOL_R2 = ROOT / "protocols" / "EXP-044-R2_deterministic_spade_mkl_compatibility_preregistered.md"
-PROTOCOL_R3 = ROOT / "protocols" / "EXP-044-R3_deterministic_spade_legacy_mkl_cpu_detection_preregistered.md"
+PROTOCOL_R1 = (
+    ROOT / "protocols" / "EXP-044-R1_deterministic_spade_fcs_compatibility_preregistered.md"
+)
+PROTOCOL_R2 = (
+    ROOT / "protocols" / "EXP-044-R2_deterministic_spade_mkl_compatibility_preregistered.md"
+)
+PROTOCOL_R3 = (
+    ROOT / "protocols" / "EXP-044-R3_deterministic_spade_legacy_mkl_cpu_detection_preregistered.md"
+)
 INPUT_FCS = (
     ROOT
     / "runs"
@@ -47,7 +51,9 @@ INSTALLER = (
     / "downloads"
     / "MCR_R2015a_win64_installer.exe"
 )
-RUNTIME_ROOT = Path(os.environ["MATLAB_RUNTIME_ROOT"]) if "MATLAB_RUNTIME_ROOT" in os.environ else None
+RUNTIME_ROOT = (
+    Path(os.environ["MATLAB_RUNTIME_ROOT"]) if "MATLAB_RUNTIME_ROOT" in os.environ else None
+)
 
 EXPECTED_INPUT_SHA256 = "f83c6da079149e82a42ecaab6cc3ee2be63a9603cee3ad80c28f278867e43b6b"
 EXPECTED_EXE_SHA256 = "abbe3dacd1adf5a9eb6a2d6467b073c4a678b93c51c7c1b1c605f123fcdeda8a"
@@ -115,7 +121,9 @@ def make_spade_delimiter_derivative(source: Path, destination: Path) -> dict[str
     if not text or text[0] != ord("#") or text[-1] != ord("#"):
         raise ValueError("parent TEXT segment does not have the registered '#' boundary delimiter")
     if b"##" in text:
-        raise ValueError("parent TEXT contains escaped/doubled delimiters; generic replacement is not registered")
+        raise ValueError(
+            "parent TEXT contains escaped/doubled delimiters; generic replacement is not registered"
+        )
     if text.count(b"#") % 2 != 1:
         raise ValueError("parent TEXT delimiter count is inconsistent with key/value pairs")
 
@@ -189,7 +197,11 @@ def prepare(attempt: int, compat_delimiter: bool, protocol_revision: str) -> Non
         if sha256(copied_fcs) != EXPECTED_INPUT_SHA256:
             raise ValueError("copied FCS failed byte-identity check")
     copied_matrix, copied_markers = read_fcs(copied_fcs)
-    if copied_matrix.shape != matrix.shape or copied_markers != marker_names or not np.array_equal(copied_matrix, matrix):
+    if (
+        copied_matrix.shape != matrix.shape
+        or copied_markers != marker_names
+        or not np.array_equal(copied_matrix, matrix)
+    ):
         raise ValueError("prepared FCS is not numerically identical to the registered parent")
 
     parameters = {
@@ -261,7 +273,9 @@ def prepare(attempt: int, compat_delimiter: bool, protocol_revision: str) -> Non
         "official_executable": str(SPADE_EXE),
         "official_executable_sha256": sha256(SPADE_EXE),
         "matlab_runtime_root": str(RUNTIME_ROOT),
-        "matlab_runtime_core_present": (RUNTIME_ROOT / "runtime" / "win64" / "mclmcrrt8_5.dll").is_file(),
+        "matlab_runtime_core_present": (
+            RUNTIME_ROOT / "runtime" / "win64" / "mclmcrrt8_5.dll"
+        ).is_file(),
         "matlab_runtime_installer": str(INSTALLER),
         "matlab_runtime_installer_sha256": sha256(INSTALLER),
         "protocol_revision": protocol_revision,
@@ -301,7 +315,13 @@ def verify(attempt: int) -> None:
         raise FileNotFoundError(f"missing required official artifacts: {missing}")
 
     result = loadmat(result_path, squeeze_me=False, struct_as_record=False)
-    required_variables = {"idx", "mst_tree", "all_assign", "all_fcs_filenames", "marker_node_average"}
+    required_variables = {
+        "idx",
+        "mst_tree",
+        "all_assign",
+        "all_fcs_filenames",
+        "marker_node_average",
+    }
     missing_variables = sorted(required_variables.difference(result))
     if missing_variables:
         raise ValueError(f"missing required MAT variables: {missing_variables}")
@@ -319,7 +339,8 @@ def verify(attempt: int) -> None:
     checks = {
         "input_hash_exact": sha256(target / INPUT_NAME) == prepared["input_sha256"],
         "registered_parent_hash_exact": prepared["input_parent_sha256"] == EXPECTED_INPUT_SHA256,
-        "input_shape_exact": prepared["events"] == EXPECTED_EVENTS and prepared["n_markers"] == EXPECTED_MARKERS,
+        "input_shape_exact": prepared["events"] == EXPECTED_EVENTS
+        and prepared["n_markers"] == EXPECTED_MARKERS,
         "runtime_core_present": (RUNTIME_ROOT / "runtime" / "win64" / "mclmcrrt8_5.dll").is_file(),
         "required_files_present": not missing,
         "required_variables_present": not missing_variables,
@@ -332,12 +353,16 @@ def verify(attempt: int) -> None:
         "pooled_idx_integral": bool(np.all(np.isfinite(idx)) and np.allclose(idx, np.rint(idx))),
         "mst_square": mst.ndim == 2 and mst.shape[0] == mst.shape[1],
         "mst_finite": bool(np.all(np.isfinite(mst))),
-        "mst_symmetric": bool(mst.ndim == 2 and mst.shape[0] == mst.shape[1] and np.allclose(mst, mst.T)),
+        "mst_symmetric": bool(
+            mst.ndim == 2 and mst.shape[0] == mst.shape[1] and np.allclose(mst, mst.T)
+        ),
         "mst_node_compatible": bool(mst.ndim == 2 and mst.shape[0] >= len(unique)),
     }
     passed = all(checks.values())
     np.save(target / "cluster_ids_all_events.npy", labels, allow_pickle=False)
-    pd.DataFrame({"cluster_id": unique, "events": counts}).to_csv(target / "cluster_sizes.csv", index=False)
+    pd.DataFrame({"cluster_id": unique, "events": counts}).to_csv(
+        target / "cluster_sizes.csv", index=False
+    )
     report = {
         "experiment_id": "EXP-044",
         "attempt": attempt,
@@ -352,7 +377,8 @@ def verify(attempt: int) -> None:
         "artifact_sha256": {
             path.name: sha256(path)
             for path in sorted(target.iterdir())
-            if path.is_file() and path.name not in {"validation_report.json", "artifact_hashes.json"}
+            if path.is_file()
+            and path.name not in {"validation_report.json", "artifact_hashes.json"}
         },
     }
     write_json(target / "validation_report.json", report)

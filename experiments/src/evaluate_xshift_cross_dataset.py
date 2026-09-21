@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import importlib.metadata
 import json
 import platform
 import sys
@@ -15,7 +14,6 @@ import scipy
 import sklearn
 from scipy.optimize import linear_sum_assignment
 from sklearn.metrics import adjusted_rand_score
-
 
 EXPECTED = {
     "Levine_32dim": {
@@ -85,7 +83,9 @@ def evaluate_multiclass(
 ) -> tuple[dict, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     true_labels, pred_labels, matrix = contingency_matrix(y_true, y_pred)
     rows, cols = linear_sum_assignment(-matrix)
-    mapping = {int(pred_labels[col]): str(true_labels[row]) for row, col in zip(rows, cols)}
+    mapping = {
+        int(pred_labels[col]): str(true_labels[row]) for row, col in zip(rows, cols, strict=False)
+    }
     inverse_mapping = {population: cluster for cluster, population in mapping.items()}
     aligned = np.array(
         [mapping.get(int(cluster), "__extra_cluster__") for cluster in y_pred], dtype=object
@@ -127,7 +127,7 @@ def evaluate_multiclass(
 
     all_clusters, all_counts = np.unique(prediction_all, return_counts=True)
     all_count_by_cluster = {
-        int(cluster): int(count) for cluster, count in zip(all_clusters, all_counts)
+        int(cluster): int(count) for cluster, count in zip(all_clusters, all_counts, strict=False)
     }
     eval_col_by_cluster = {int(cluster): index for index, cluster in enumerate(pred_labels)}
     cluster_rows: list[dict] = []
@@ -284,9 +284,7 @@ def evaluate_rare_target(
         "target_f1": float(best["f1"]),
         "target_f2": float(best["f2"]),
         "target_overlapping_clusters": int(np.sum(target_array > 0)),
-        "target_clusters_ge_1pct_target": int(
-            np.sum(target_array / target_events >= 0.01)
-        ),
+        "target_clusters_ge_1pct_target": int(np.sum(target_array / target_events >= 0.01)),
         "target_effective_predicted_clusters": effective_categories(target_array),
         "target_dominant_cluster_capture": float(target_array.max() / target_events),
         "background_overlapping_clusters": int(np.sum(background_array > 0)),
@@ -294,9 +292,7 @@ def evaluate_rare_target(
             np.sum(background_array / background_events >= 0.01)
         ),
         "background_effective_predicted_clusters": effective_categories(background_array),
-        "background_dominant_cluster_capture": float(
-            background_array.max() / background_events
-        ),
+        "background_dominant_cluster_capture": float(background_array.max() / background_events),
     }
     contingency = pd.crosstab(
         pd.Series(y_true.astype(str), name="reference_label"),
@@ -310,7 +306,13 @@ def metrics_are_valid(metrics: dict) -> tuple[bool, str]:
         key
         for key in metrics
         if key.endswith(("precision", "recall", "f1", "f2", "accuracy", "purity"))
-        or key in {"ari", "target_prevalence", "target_dominant_cluster_capture", "background_dominant_cluster_capture"}
+        or key
+        in {
+            "ari",
+            "target_prevalence",
+            "target_dominant_cluster_capture",
+            "background_dominant_cluster_capture",
+        }
     ]
     invalid: list[str] = []
     for key in proportion_keys:
@@ -389,13 +391,20 @@ def main() -> int:
     def check(name: str, passed: bool, detail: str) -> None:
         checks.append({"check": name, "passed": bool(passed), "detail": detail})
 
-    check("parent_manifest_passed", bool(parent_manifest.get("all_checks_passed")), str(parent_manifest.get("all_checks_passed")))
-    check("parent_dataset_matches", parent_manifest.get("dataset") == args.dataset, str(parent_manifest.get("dataset")))
+    check(
+        "parent_manifest_passed",
+        bool(parent_manifest.get("all_checks_passed")),
+        str(parent_manifest.get("all_checks_passed")),
+    )
+    check(
+        "parent_dataset_matches",
+        parent_manifest.get("dataset") == args.dataset,
+        str(parent_manifest.get("dataset")),
+    )
     parent_mode = parent_manifest.get("xshift_mode", "fixed_k")
     if args.expected_mode == "fixed_k":
         parameter_contract_passed = bool(
-            parent_mode == "fixed_k"
-            and parent_manifest.get("xshift_knn_k") == args.expected_k
+            parent_mode == "fixed_k" and parent_manifest.get("xshift_knn_k") == args.expected_k
         )
         parameter_contract_detail = json.dumps(
             {
@@ -425,18 +434,58 @@ def main() -> int:
         parameter_contract_passed,
         parameter_contract_detail,
     )
-    check("parent_fit_used_no_label", parent_manifest.get("label_used_for_fit_or_selection") is False, str(parent_manifest.get("label_used_for_fit_or_selection")))
-    check("source_hash_matches_parent", sha256(source) == parent_manifest.get("source_sha256"), sha256(source))
-    check("total_event_count", len(labels) == len(prediction_all) == expected["total_events"], f"source={len(labels)}, predictions={len(prediction_all)}, expected={expected['total_events']}")
-    check("prediction_is_1d_integer", prediction_all.ndim == 1 and np.issubdtype(prediction_all.dtype, np.integer), f"shape={prediction_all.shape}, dtype={prediction_all.dtype}")
-    check("prediction_has_no_negative_ids", bool(np.all(prediction_all >= 0)), f"min={int(prediction_all.min())}")
-    check("cluster_count_matches_parent", int(np.unique(prediction_all).size) == parent_manifest.get("predicted_clusters"), f"observed={np.unique(prediction_all).size}, parent={parent_manifest.get('predicted_clusters')}")
-    check("evaluable_event_count", int(evaluable.sum()) == expected["evaluable_events"], f"observed={int(evaluable.sum())}, expected={expected['evaluable_events']}")
+    check(
+        "parent_fit_used_no_label",
+        parent_manifest.get("label_used_for_fit_or_selection") is False,
+        str(parent_manifest.get("label_used_for_fit_or_selection")),
+    )
+    check(
+        "source_hash_matches_parent",
+        sha256(source) == parent_manifest.get("source_sha256"),
+        sha256(source),
+    )
+    check(
+        "total_event_count",
+        len(labels) == len(prediction_all) == expected["total_events"],
+        f"source={len(labels)}, predictions={len(prediction_all)}, expected={expected['total_events']}",
+    )
+    check(
+        "prediction_is_1d_integer",
+        prediction_all.ndim == 1 and np.issubdtype(prediction_all.dtype, np.integer),
+        f"shape={prediction_all.shape}, dtype={prediction_all.dtype}",
+    )
+    check(
+        "prediction_has_no_negative_ids",
+        bool(np.all(prediction_all >= 0)),
+        f"min={int(prediction_all.min())}",
+    )
+    check(
+        "cluster_count_matches_parent",
+        int(np.unique(prediction_all).size) == parent_manifest.get("predicted_clusters"),
+        f"observed={np.unique(prediction_all).size}, parent={parent_manifest.get('predicted_clusters')}",
+    )
+    check(
+        "evaluable_event_count",
+        int(evaluable.sum()) == expected["evaluable_events"],
+        f"observed={int(evaluable.sum())}, expected={expected['evaluable_events']}",
+    )
     if expected["mode"] == "multiclass":
-        check("true_population_count", int(np.unique(y_true).size) == expected["true_populations"], f"observed={np.unique(y_true).size}, expected={expected['true_populations']}")
+        check(
+            "true_population_count",
+            int(np.unique(y_true).size) == expected["true_populations"],
+            f"observed={np.unique(y_true).size}, expected={expected['true_populations']}",
+        )
     else:
-        check("target_event_count", int(np.sum(y_true == expected["target"])) == expected["target_events"], f"observed={int(np.sum(y_true == expected['target']))}, expected={expected['target_events']}")
-        check("binary_reference_labels", set(np.unique(y_true)) == {expected["target"], "other"}, str(sorted(np.unique(y_true))))
+        check(
+            "target_event_count",
+            int(np.sum(y_true == expected["target"])) == expected["target_events"],
+            f"observed={int(np.sum(y_true == expected['target']))}, expected={expected['target_events']}",
+        )
+        check(
+            "binary_reference_labels",
+            set(np.unique(y_true)) == {expected["target"], "other"},
+            str(sorted(np.unique(y_true))),
+        )
     check("metric_ranges", metric_valid, metric_detail)
 
     output = args.output.resolve()
@@ -457,7 +506,9 @@ def main() -> int:
         ]
     ).to_csv(output / "run_level_metrics.csv", index=False)
     cluster_frame.to_csv(output / "cluster_level_diagnostics.csv", index=False)
-    contingency_frame.to_csv(output / "contingency_true_by_predicted.csv", index_label="true_population")
+    contingency_frame.to_csv(
+        output / "contingency_true_by_predicted.csv", index_label="true_population"
+    )
     if population_frame is not None:
         population_frame.to_csv(output / "population_level_metrics.csv", index=False)
         mapping_frame.to_csv(output / "hungarian_mapping.csv", index=False)
@@ -498,36 +549,49 @@ def main() -> int:
         },
         "all_checks_passed": all(row["passed"] for row in checks),
     }
-    (output / "run_manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    (output / "run_manifest.json").write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
 
     artifact_files = sorted(path for path in output.iterdir() if path.is_file())
     artifact_hashes = {str(path): sha256(path) for path in artifact_files}
-    (output / "artifact_hashes.json").write_text(json.dumps(artifact_hashes, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    (output / "artifact_hashes.json").write_text(
+        json.dumps(artifact_hashes, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
 
     if expected["mode"] == "multiclass":
         result_lines = [
             f"ARI={metrics['ari']:.6f}；Macro precision={metrics['macro_precision']:.6f}；Macro recall={metrics['macro_recall']:.6f}；Macro F1={metrics['macro_f1']:.6f}。",
-            f"真实群体={metrics['n_true_populations']}；评价子集预测簇={metrics['n_predicted_clusters_evaluable']}；未匹配评价簇={metrics['unmatched_evaluable_clusters']}；未匹配评价事件={metrics['unmatched_evaluable_events']:,}。",
-            f"平均群体有效拆分簇数={metrics['mean_population_effective_predicted_clusters']:.3f}；加权簇纯度={metrics['weighted_evaluable_cluster_purity']:.6f}。",
+            f"Reference populations={metrics['n_true_populations']}; predicted clusters in the evaluation subset={metrics['n_predicted_clusters_evaluable']}; unmatched evaluated clusters={metrics['unmatched_evaluable_clusters']}; unmatched evaluated events={metrics['unmatched_evaluable_events']:,}.",
+            f"Mean effective predicted clusters per population={metrics['mean_population_effective_predicted_clusters']:.3f}; weighted cluster purity={metrics['weighted_evaluable_cluster_purity']:.6f}.",
         ]
     else:
         result_lines = [
-            f"ARI={metrics['ari']:.6f}；目标={metrics['target']}（{metrics['target_events']:,}/{metrics['n_total_events']:,}）。",
-            f"最佳单簇={metrics['selected_target_cluster']}；precision={metrics['target_precision']:.6f}；recall={metrics['target_recall']:.6f}；F1={metrics['target_f1']:.6f}；F2={metrics['target_f2']:.6f}。",
-            f"目标有效拆分簇数={metrics['target_effective_predicted_clusters']:.3f}；背景有效拆分簇数={metrics['background_effective_predicted_clusters']:.3f}。",
+            f"ARI={metrics['ari']:.6f}; target={metrics['target']} ({metrics['target_events']:,}/{metrics['n_total_events']:,}).",
+            f"Best single cluster={metrics['selected_target_cluster']}; precision={metrics['target_precision']:.6f}; recall={metrics['target_recall']:.6f}; F1={metrics['target_f1']:.6f}; F2={metrics['target_f2']:.6f}.",
+            f"Effective predicted clusters for the target={metrics['target_effective_predicted_clusters']:.3f}; effective predicted clusters for the background={metrics['background_effective_predicted_clusters']:.3f}.",
         ]
     audit = [
-        f"# {args.experiment_id} 官方X-shift {args.dataset}事后评价",
+        f"# {args.experiment_id} Post hoc evaluation of official X-shift on {args.dataset}",
         "",
-        f"评价模式：{metrics['evaluation_mode']}；可评价事件={metrics['n_evaluable_events']:,}/{metrics['n_total_events']:,}。",
+        f"Evaluation mode: {metrics['evaluation_mode']}; evaluated events={metrics['n_evaluable_events']:,}/{metrics['n_total_events']:,}.",
         *result_lines,
         "",
-        f"完整性检查：{'全部通过' if manifest['all_checks_passed'] else '存在失败'}。",
-        "标签只用于父运行完成后的评价；未用于拟合、K选择或参数搜索。",
-        "本结果不证明K敏感性、正式稳定性或跨算法优劣。",
+        f"Integrity checks: {'all passed' if manifest['all_checks_passed'] else 'one or more failed'}.",
+        "Labels were used only to evaluate the completed parent run; they were not used for fitting, K selection, or parameter search.",
+        "This result does not establish K sensitivity, formal stability, or cross-algorithm superiority.",
     ]
     (output / "audit.md").write_text("\n".join(audit) + "\n", encoding="utf-8")
-    print(json.dumps({"dataset": args.dataset, **metrics, "all_checks_passed": manifest["all_checks_passed"]}, ensure_ascii=False))
+    print(
+        json.dumps(
+            {
+                "dataset": args.dataset,
+                **metrics,
+                "all_checks_passed": manifest["all_checks_passed"],
+            },
+            ensure_ascii=False,
+        )
+    )
     return 0 if manifest["all_checks_passed"] else 1
 
 

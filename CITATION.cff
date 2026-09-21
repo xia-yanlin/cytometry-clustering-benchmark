@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: >-
+  If you use this repository, please cite the accompanying manuscript and this
+  software repository. Add the archive DOI after a release is deposited.
+title: Cytometry clustering evaluation
+type: software
+authors:
+  - family-names: Lu
+    given-names: Songnian
+  - family-names: Tao
+    given-names: Lei
+  - family-names: Wang
+    given-names: Kan
+  - family-names: Wu
+    given-names: Xingjiao
+repository-code: https://github.com/xia-yanlin/cytometry-clustering-benchmark
+license: MIT

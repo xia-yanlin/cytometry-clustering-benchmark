@@ -29,9 +29,7 @@ def read_cluster_ids(path: Path) -> tuple[np.ndarray, list[str]]:
     data = flowio.FlowData(str(path))
     matrix = np.asarray(data.events, dtype=np.float64).reshape(data.event_count, data.channel_count)
     names = [
-        data.channels[index].get("pnn")
-        or data.channels[index].get("pns")
-        or f"channel_{index}"
+        data.channels[index].get("pnn") or data.channels[index].get("pns") or f"channel_{index}"
         for index in range(1, data.channel_count + 1)
     ]
     indices = [
@@ -53,7 +51,9 @@ def align_and_score(y_true: np.ndarray, y_pred: np.ndarray):
         for j, cluster in enumerate(pred_labels):
             matrix[i, j] = int(np.sum((y_true == label) & (y_pred == cluster)))
     rows, cols = linear_sum_assignment(-matrix)
-    mapping = {int(pred_labels[col]): str(true_labels[row]) for row, col in zip(rows, cols)}
+    mapping = {
+        int(pred_labels[col]): str(true_labels[row]) for row, col in zip(rows, cols, strict=False)
+    }
     aligned = np.array([mapping.get(int(value), "__extra_cluster__") for value in y_pred])
 
     population_rows = []
@@ -138,9 +138,9 @@ def main() -> int:
     pd.DataFrame({"predicted_cluster": unique, "all_event_count": counts}).to_csv(
         output / "cluster_sizes_all_events.csv", index=False
     )
-    pd.DataFrame([{"dataset": "Levine_13dim", "algorithm": "official_X-shift", "knn_k": 20, **metrics}]).to_csv(
-        output / "run_level_metrics.csv", index=False
-    )
+    pd.DataFrame(
+        [{"dataset": "Levine_13dim", "algorithm": "official_X-shift", "knn_k": 20, **metrics}]
+    ).to_csv(output / "run_level_metrics.csv", index=False)
 
     parent_manifest = json.loads(parent_manifest_path.read_text(encoding="utf-8"))
     checks = [
@@ -161,7 +161,8 @@ def main() -> int:
         },
         {
             "check": "output_fcs_hash_matches_parent_inventory",
-            "passed": file_sha256(fcs) == "e3969be4283e1cf56ecdb870dbbaf2509aa4307c135c28719d54b898b421015e",
+            "passed": file_sha256(fcs)
+            == "e3969be4283e1cf56ecdb870dbbaf2509aa4307c135c28719d54b898b421015e",
             "detail": file_sha256(fcs),
         },
         {
@@ -211,17 +212,17 @@ def main() -> int:
         json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
     audit = [
-        "# EXP-009A 官方X-shift Levine_13dim评价",
+        "# EXP-009A Official X-shift evaluation on Levine_13dim",
         "",
-        f"评价事件：{int(evaluable.sum()):,}/{len(frame):,}；真群体：24；全事件预测簇：{metrics['n_predicted_clusters_all_events']}；评价子集预测簇：{metrics['n_predicted_clusters_evaluable']}。",
+        f"Evaluated events: {int(evaluable.sum()):,}/{len(frame):,}; reference populations: 24; predicted clusters across all events: {metrics['n_predicted_clusters_all_events']}; predicted clusters in the evaluation subset: {metrics['n_predicted_clusters_evaluable']}.",
         f"ARI={metrics['ari']:.6f}；Macro F1={metrics['macro_f1']:.6f}；accuracy={metrics['accuracy']:.6f}。",
-        f"未匹配簇={metrics['unmatched_clusters']}；未匹配评价事件={metrics['unmatched_evaluable_events']:,}。",
+        f"Unmatched clusters: {metrics['unmatched_clusters']}; unmatched evaluated events: {metrics['unmatched_evaluable_events']:,}.",
         "",
-        "## 边界",
+        "## Interpretation limits",
         "",
-        "- K=20是作者建议的快速首轮默认近邻数，不是输出簇数；本次输出80簇。",
-        "- 人工标签只用于本派生评价，没有进入EXP-009-R1拟合或参数选择。",
-        "- 单次单数据集结果不能支持稳定性、K敏感性或全方法优劣结论。",
+        "- K=20 is the authors' suggested nearest-neighbor default for an initial fast run; it is not the output cluster count. This run produced 80 clusters.",
+        "- Manual labels were used only for this derived evaluation and did not enter EXP-009-R1 fitting or parameter selection.",
+        "- A single run on one dataset cannot support conclusions about stability, K sensitivity, or overall method superiority.",
     ]
     (output / "audit.md").write_text("\n".join(audit) + "\n", encoding="utf-8")
     print(json.dumps({**metrics, "all_checks_passed": manifest["all_checks_passed"]}))

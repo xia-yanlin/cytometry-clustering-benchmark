@@ -104,8 +104,7 @@ def main() -> int:
             mask = evaluable_mask(chunk["label"], spec["label_policy"])
             evaluated_cells += int(mask.sum())
             label_counts.update(
-                normalized_label(value, spec["label_policy"])
-                for value in chunk["label"].tolist()
+                normalized_label(value, spec["label_policy"]) for value in chunk["label"].tolist()
             )
             for marker in marker_cols:
                 values = pd.to_numeric(chunk[marker], errors="coerce").to_numpy(dtype=float)
@@ -123,49 +122,63 @@ def main() -> int:
             )
 
         digest = file_sha256(path)
-        inventory_rows.append({
-            "dataset": dataset,
-            "path": str(path),
-            "filename": path.name,
-            "bytes": path.stat().st_size,
-            "sha256": digest,
-            "total_cells": total_cells,
-            "evaluated_cells": evaluated_cells,
-            "unassigned_cells": total_cells - evaluated_cells,
-            "evaluated_fraction": evaluated_cells / total_cells,
-            "columns": len(columns),
-            "markers": len(marker_cols),
-            "expected_markers": int(spec["expected_markers"]),
-            "marker_count_ok": marker_count_ok,
-            "input_transform": "already_transformed" if spec["cofactor"] is None else "untransformed",
-            "analysis_transform": "none" if spec["cofactor"] is None else f"arcsinh(x/{spec['cofactor']})",
-            "label_policy": spec["label_policy"],
-        })
-        for label, count in sorted(label_counts.items()):
-            label_rows.append({
+        inventory_rows.append(
+            {
                 "dataset": dataset,
-                "label": label,
-                "count": count,
-                "fraction": count / total_cells,
-                "evaluable": label != "__unassigned__",
-            })
+                "path": str(path),
+                "filename": path.name,
+                "bytes": path.stat().st_size,
+                "sha256": digest,
+                "total_cells": total_cells,
+                "evaluated_cells": evaluated_cells,
+                "unassigned_cells": total_cells - evaluated_cells,
+                "evaluated_fraction": evaluated_cells / total_cells,
+                "columns": len(columns),
+                "markers": len(marker_cols),
+                "expected_markers": int(spec["expected_markers"]),
+                "marker_count_ok": marker_count_ok,
+                "input_transform": "already_transformed"
+                if spec["cofactor"] is None
+                else "untransformed",
+                "analysis_transform": "none"
+                if spec["cofactor"] is None
+                else f"arcsinh(x/{spec['cofactor']})",
+                "label_policy": spec["label_policy"],
+            }
+        )
+        for label, count in sorted(label_counts.items()):
+            label_rows.append(
+                {
+                    "dataset": dataset,
+                    "label": label,
+                    "count": count,
+                    "fraction": count / total_cells,
+                    "evaluable": label != "__unassigned__",
+                }
+            )
         for marker in marker_cols:
             n = marker_n[marker]
             raw_min = marker_min[marker] if n else np.nan
             raw_max = marker_max[marker] if n else np.nan
             raw_mean = marker_sum[marker] / n if n else np.nan
             cofactor = spec["cofactor"]
-            marker_rows.append({
-                "dataset": dataset,
-                "marker": marker,
-                "finite_cells": n,
-                "missing_or_nonfinite": total_cells - n,
-                "raw_min": raw_min,
-                "raw_max": raw_max,
-                "raw_mean": raw_mean,
-                "analysis_min": raw_min if cofactor is None else float(np.arcsinh(raw_min / cofactor)),
-                "analysis_max": raw_max if cofactor is None else float(np.arcsinh(raw_max / cofactor)),
-            })
+            marker_rows.append(
+                {
+                    "dataset": dataset,
+                    "marker": marker,
+                    "finite_cells": n,
+                    "missing_or_nonfinite": total_cells - n,
+                    "raw_min": raw_min,
+                    "raw_max": raw_max,
+                    "raw_mean": raw_mean,
+                    "analysis_min": raw_min
+                    if cofactor is None
+                    else float(np.arcsinh(raw_min / cofactor)),
+                    "analysis_max": raw_max
+                    if cofactor is None
+                    else float(np.arcsinh(raw_max / cofactor)),
+                }
+            )
 
     pd.DataFrame(inventory_rows).to_csv(output / "data_inventory.csv", index=False)
     pd.DataFrame(label_rows).to_csv(output / "label_summary.csv", index=False)
@@ -187,24 +200,31 @@ def main() -> int:
         json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8"
     )
     report = [
-        f"# {args.experiment_id} 数据与标签审计",
+        f"# {args.experiment_id} Data and label audit",
         "",
-        "对应审稿问题：13、14、34；并为全部算法实验建立输入基线。",
+        "This audit addresses reviewer questions 13, 14, and 34 and establishes the input baseline for all algorithm experiments.",
         "",
-        f"结果：{'通过预注册结构检查' if not failures else '存在未通过项'}。",
+        f"Result: {'all preregistered structural checks passed' if not failures else 'one or more checks failed'}.",
         "",
-        "## 自动检查结果",
+        "## Automated checks",
         "",
     ]
-    report.extend([f"- {item}" for item in failures] or ["- 五个文件均存在，且标记物数量符合预注册合同。"])
-    report.extend([
-        "",
-        "## 使用限制",
-        "",
-        "- 本实验验证本地文件与输入结构，不等于已经证明上游公开来源可重获。",
-        "- 来源 URL、版本与转换链仍需单独的来源资格审查后，问题 14/34 才可能完全达标。",
-        "- 是否在聚类前过滤未标注细胞，将在后续成对聚类实验中验证；本实验只固定计数与索引政策。",
-    ])
+    report.extend(
+        [f"- {item}" for item in failures]
+        or [
+            "- All five files are present and their marker counts match the preregistered contract."
+        ]
+    )
+    report.extend(
+        [
+            "",
+            "## Scope and limitations",
+            "",
+            "- This experiment validates local files and input structure; it does not by itself prove that the upstream public source can be retrieved again.",
+            "- Source URLs, versions, and transformation chains require a separate provenance audit before questions 14 and 34 can be considered fully addressed.",
+            "- The effect of filtering unlabeled cells before clustering is evaluated in a subsequent paired experiment; this audit fixes only the counting and indexing policy.",
+        ]
+    )
     (output / "audit.md").write_text("\n".join(report) + "\n", encoding="utf-8")
     exit_code = int(bool(failures))
     summary = {"output": str(output), "failures": failures, "exit_code": exit_code}

@@ -1,59 +1,423 @@
 from __future__ import annotations
-import argparse,hashlib,json,platform,sys,time,zipfile,subprocess
-from concurrent.futures import ThreadPoolExecutor,as_completed
-from datetime import datetime,timezone
+
+import argparse
+import hashlib
+import json
+import platform
+import subprocess
+import sys
+import zipfile
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime, timezone
 from pathlib import Path
+
 import numpy as np
 import pandas as pd
+from evaluate_xshift_cross_dataset import evaluate_multiclass, evaluate_rare_target
+from run_official_xshift import run_xshift_until_cluster_output
+from run_xshift_nilsson_fixedK20_30repeat import bootstrap_ci, class_methodrefs, read_fcs, sha256
 from sklearn.metrics import adjusted_rand_score
 
-from evaluate_xshift_cross_dataset import evaluate_multiclass,evaluate_rare_target
-from run_official_xshift import run_xshift_until_cluster_output
-from run_xshift_nilsson_fixedK20_30repeat import bootstrap_ci,class_methodrefs,read_fcs,sha256
 
-def main()->int:
- ap=argparse.ArgumentParser()
- for n in ("parent","source-repo","release-jar","java","data","protocol","output"):ap.add_argument("--"+n,type=Path,required=True)
- ap.add_argument("--experiment-id",required=True);ap.add_argument("--dataset",required=True);ap.add_argument("--parent-id",required=True);ap.add_argument("--input-fcs-name",required=True);ap.add_argument("--separator",choices=["comma","tab"],required=True);ap.add_argument("--evaluation-mode",choices=["multiclass","rare"],required=True);ap.add_argument("--target");ap.add_argument("--n-events",type=int,required=True);ap.add_argument("--n-markers",type=int,required=True);ap.add_argument("--expected-evaluable",type=int);ap.add_argument("--n-populations",type=int);ap.add_argument("--workers",type=int,default=2);ap.add_argument("--timeout-seconds",type=int,default=3600);a=ap.parse_args()
- parent=a.parent.resolve();repo=a.source_repo.resolve();jar=a.release_jar.resolve();java=a.java.resolve();data=a.data.resolve();protocol=a.protocol.resolve();out=a.output.resolve();out.mkdir(parents=True,exist_ok=False);runs=out/"runs";runs.mkdir();helper=Path(__file__).with_name("run_official_xshift.py");base=Path(__file__).with_name("run_xshift_nilsson_fixedK20_30repeat.py");evaluator=Path(__file__).with_name("evaluate_xshift_cross_dataset.py")
- pm=json.loads((parent/"run_manifest.json").read_text(encoding="utf-8"));input_fcs=parent/a.input_fcs_name;config=parent/"importConfig.txt";input_matrix,names=read_fcs(input_fcs);parent_labels=np.load(parent/"cluster_ids_all_events.npy",allow_pickle=False)
- if pm["experiment_id"]!=a.parent_id or not pm["all_checks_passed"] or pm.get("xshift_completion_mode")!="stopped_after_cluster_output_before_mst_layout" or input_matrix.shape!=(a.n_events,a.n_markers) or parent_labels.shape!=(a.n_events,):raise ValueError("parent contract")
- parent_jar=Path(json.loads((parent/"xshift_execution.json").read_text(encoding="utf-8"))["command"][3]);
- if sha256(parent_jar)!=sha256(jar):raise ValueError("jar mismatch")
- commit=subprocess.run(["git","-C",str(repo),"rev-parse","29-Jun-2017^{}"],capture_output=True,text=True,check=True).stdout.strip();source=subprocess.run(["git","-C",str(repo),"show","29-Jun-2017^{}:src/vortex/clustering/XShiftClustering.java"],capture_output=True,text=True,check=True).stdout
- with zipfile.ZipFile(jar) as z:cls=z.read("util/Shuffle.class")
- refs=class_methodrefs(cls);contract={"tag_commit":commit,"source_sha256":hashlib.sha256(source.encode()).hexdigest(),"source_has_shuffle_initialization":"new Shuffle<Datapoint>()).shuffleCopyArray" in source,"source_has_math_random_fallback":"Math.random() * (numCells)" in source,"shuffle_class_sha256":hashlib.sha256(cls).hexdigest(),"default_random_constructor_present":('java/util/Random','<init>','()V') in refs,"seeded_random_constructor_present":('java/util/Random','<init>','(J)V') in refs,"cli_seed_interface":False};(out/"randomness_source_contract.json").write_text(json.dumps(contract,indent=2)+"\n",encoding="utf-8")
- if commit!="fda75cf79980222da663185e2a6a72b442b9aff3" or not contract["source_has_shuffle_initialization"] or not contract["source_has_math_random_fallback"] or not contract["default_random_constructor_present"] or contract["seeded_random_constructor_present"]:raise ValueError("random contract")
- raw=pd.read_csv(data,sep="\t" if a.separator=="tab" else ",",usecols=["label"])["label"].astype(str).to_numpy()
- if a.evaluation_mode=="multiclass":ev=raw!="unassigned";truth=raw[ev];
- else:ev=np.ones(len(raw),dtype=bool);truth=raw
- if len(raw)!=a.n_events or a.evaluation_mode=="multiclass" and (int(ev.sum())!=a.expected_evaluable or np.unique(truth).size!=a.n_populations) or a.evaluation_mode=="rare" and (not a.target or np.sum(truth==a.target)==0):raise ValueError("truth contract")
- cmd=[str(java),"-Xmx4G","-cp",str(jar),"standalone.Xshift","20"];inputs={"input_fcs":sha256(input_fcs),"config":sha256(config),"jar":sha256(jar),"java":sha256(java),"data":sha256(data),"mst_helper":sha256(helper),"base_helper":sha256(base),"evaluator":sha256(evaluator)};(out/"input_hashes.json").write_text(json.dumps(inputs,indent=2)+"\n",encoding="utf-8")
- def one(rep:int)->dict:
-  d=runs/f"repeat{rep:03d}";d.mkdir();(d/"importConfig.txt").write_bytes(config.read_bytes());(d/"fcsFileList.txt").write_text(str(input_fcs)+"\n",encoding="utf-8");info=run_xshift_until_cluster_output(cmd,d,a.n_events,names,a.timeout_seconds);cand=list((d/"out").glob("*.fcs"));ok=False;detail="";nc=None;lh=None
-  if info["cluster_output_complete_before_stop"] and info["mst_stage_observed"] and info["completion_mode"]=="stopped_after_cluster_output_before_mst_layout" and len(cand)==1:
-   m,n=read_fcs(cand[0]);v=m[:,-1];ok=m.shape==(a.n_events,a.n_markers+1) and n[:-1]==names and n[-1].lower().replace("_","")=="clusterid" and np.all(np.isfinite(v)) and np.allclose(v,np.rint(v)) and np.array_equal(m[:,:-1],input_matrix)
-   if ok:lab=np.rint(v).astype(np.int32);np.save(d/"cluster_ids_all_events.npy",lab);lh=sha256(d/"cluster_ids_all_events.npy");u,c=np.unique(lab,return_counts=True);nc=len(u);pd.DataFrame({"cluster_id":u,"events":c}).to_csv(d/"cluster_sizes.csv",index=False)
-   detail=f"shape={m.shape}; marker_exact={np.array_equal(m[:,:-1],input_matrix)}"
-  rec={"repeat":rep,**info,"all_checks_passed":ok,"detail":detail,"n_clusters":nc,"labels_sha256":lh};(d/"run_manifest.json").write_text(json.dumps(rec,ensure_ascii=False,indent=2)+"\n",encoding="utf-8");return rec
- records=[]
- with ThreadPoolExecutor(max_workers=a.workers) as pool:
-  fs={pool.submit(one,r):r for r in range(30)}
-  for f in as_completed(fs):rec=f.result();records.append(rec);print(f"REPEAT_DONE repeat={rec['repeat']:03d} pass={rec['all_checks_passed']} runtime={rec['runtime_seconds']:.2f}s mode={rec['completion_mode']}",flush=True)
- records.sort(key=lambda x:x["repeat"]);pd.DataFrame(records).to_csv(out/"execution_index.csv",index=False);rows=[];detail_frames=[];parts=[];parent_rows=[]
- for rec in records:
-  if not rec["all_checks_passed"]:continue
-  rep=rec["repeat"];lab=np.load(runs/f"repeat{rep:03d}"/"cluster_ids_all_events.npy",allow_pickle=False);parts.append(lab)
-  if a.evaluation_mode=="multiclass":met,df,_,_,_=evaluate_multiclass(truth,lab[ev],lab)
-  else:met,df,_=evaluate_rare_target(truth,lab,a.target)
-  rows.append({"repeat":rep,"runtime_seconds":rec["runtime_seconds"],"partition_sha256":hashlib.sha256(lab.tobytes()).hexdigest(),**met});df.insert(0,"repeat",rep);detail_frames.append(df);parent_rows.append({"repeat":rep,"parent_partition_ari":adjusted_rand_score(parent_labels,lab),"parent_exact_label_fraction":float(np.mean(parent_labels==lab))})
- rf=pd.DataFrame(rows);rf.to_csv(out/"run_level_metrics.csv",index=False);pd.concat(detail_frames,ignore_index=True).to_csv(out/("population_level_metrics.csv" if a.evaluation_mode=="multiclass" else "target_cluster_metrics.csv"),index=False);pd.DataFrame(parent_rows).to_csv(out/"parent_partition_comparison.csv",index=False);pairs=[]
- for i in range(len(parts)):
-  for j in range(i+1,len(parts)):pairs.append({"repeat_a":int(rf.iloc[i]["repeat"]),"repeat_b":int(rf.iloc[j]["repeat"]),"partition_ari":adjusted_rand_score(parts[i],parts[j])})
- pf=pd.DataFrame(pairs);pf.to_csv(out/"pairwise_partition_ari.csv",index=False);metric_names=("runtime_seconds","n_predicted_clusters_all_events","ari","macro_precision","macro_recall","macro_f1","weighted_f1","hungarian_accuracy","weighted_evaluable_cluster_purity") if a.evaluation_mode=="multiclass" else ("runtime_seconds","n_predicted_clusters_all_events","ari","target_precision","target_recall","target_f1","target_f2");summary=[]
- for i,k in enumerate(metric_names):v=rf[k].to_numpy(float);lo,hi=bootstrap_ci(v,20260911+i);summary.append({"metric":k,"n":len(v),"mean":v.mean(),"sd":v.std(ddof=1),"median":np.median(v),"min":v.min(),"max":v.max(),"bootstrap_mean_ci_low":lo,"bootstrap_mean_ci_high":hi})
- pd.DataFrame(summary).to_csv(out/"endpoint_descriptive_statistics.csv",index=False);success=sum(bool(r["all_checks_passed"]) for r in records);unique=int(rf.partition_sha256.nunique()) if len(rf) else 0;checks=[]
- def ck(n,p,d):checks.append({"check":n,"passed":bool(p),"detail":d})
- ck("parent_manifest",pm["experiment_id"]==a.parent_id and pm["all_checks_passed"],pm["experiment_id"]);ck("randomness_source",contract["default_random_constructor_present"] and not contract["seeded_random_constructor_present"],json.dumps(contract));ck("execution_accounting",len(records)==30 and {r["repeat"] for r in records}==set(range(30)),f"rows={len(records)}");ck("all_runs_successful",success==30,f"success={success}");ck("all_bypass_guards",all(r["mst_stage_observed"] and r["cluster_output_complete_before_stop"] and r["completion_mode"]=="stopped_after_cluster_output_before_mst_layout" for r in records),"30/30");ck("run_metrics",len(rf)==success and rf.repeat.nunique()==success,f"rows={len(rf)}");ck("detail_metrics",sum(len(x) for x in detail_frames)>0,f"rows={sum(len(x) for x in detail_frames)}");ck("pairwise_count",len(pf)==success*(success-1)//2,f"rows={len(pf)}");ck("input_hash_uniformity",all(sha256(runs/f"repeat{r:03d}"/"importConfig.txt")==inputs["config"] for r in range(30)),"30/30");ck("finite_primary",np.isfinite(rf.select_dtypes(include=[np.number]).to_numpy()).all(),"finite");cf=pd.DataFrame(checks);cf.to_csv(out/"checks.csv",index=False);pv=pf.partition_ari.to_numpy(float)
- manifest={"experiment_id":a.experiment_id,"completed_utc":datetime.now(timezone.utc).isoformat(),"dataset":a.dataset,"evaluation_mode":a.evaluation_mode,"protocol":str(protocol),"protocol_sha256":sha256(protocol),"script":str(Path(__file__).resolve()),"script_sha256":sha256(Path(__file__).resolve()),"mst_helper":str(helper),"mst_helper_sha256":sha256(helper),"base_helper":str(base),"base_helper_sha256":sha256(base),"evaluator_script":str(evaluator),"evaluator_script_sha256":sha256(evaluator),"parent":str(parent),"parent_manifest_sha256":sha256(parent/"run_manifest.json"),"source_repo":str(repo),"tag_commit":commit,"release_jar":str(jar),"release_jar_sha256":sha256(jar),"java":str(java),"java_sha256":sha256(java),"data":str(data),"data_sha256":sha256(data),"n_events":a.n_events,"n_markers":a.n_markers,"workers":a.workers,"repeat_not_seed":True,"mst_bypass_after_validated_cluster_output":True,"runs_attempted":30,"runs_successful":success,"runs_failed":30-success,"unique_partition_hashes":unique,"pairwise_partition_ari_mean":float(pv.mean()),"pairwise_partition_ari_min":float(pv.min()),"pairwise_partition_ari_max":float(pv.max()),"checks_passed":int(cf.passed.sum()),"checks_total":len(cf),"all_checks_passed":bool(cf.passed.all()),"python":sys.version,"python_executable":sys.executable,"platform":platform.platform()};(out/"run_manifest.json").write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+"\n",encoding="utf-8");endpoint="macro_f1" if a.evaluation_mode=="multiclass" else "target_f1";(out/"scientific_summary.md").write_text(f"# {a.experiment_id} X-shift {a.dataset}固定K=20三十次原生重复\n\n成功{success}/30；每次仅在MST日志与完整聚类FCS双守卫后停止；唯一分区{unique}；两两ARI范围[{pv.min():.6f},{pv.max():.6f}]；{endpoint}范围[{rf[endpoint].min():.6f},{rf[endpoint].max():.6f}]。repeat不是seed，MST布局未完成。\n",encoding="utf-8");arts=[p for p in out.rglob("*") if p.is_file()];(out/"artifact_hashes.json").write_text(json.dumps({str(p.relative_to(out)):sha256(p) for p in arts},ensure_ascii=False,indent=2)+"\n",encoding="utf-8");print(json.dumps(manifest,ensure_ascii=False));return 0 if manifest["all_checks_passed"] else 1
-if __name__=="__main__":raise SystemExit(main())
+def main() -> int:
+    ap = argparse.ArgumentParser()
+    for n in ("parent", "source-repo", "release-jar", "java", "data", "protocol", "output"):
+        ap.add_argument("--" + n, type=Path, required=True)
+    ap.add_argument("--experiment-id", required=True)
+    ap.add_argument("--dataset", required=True)
+    ap.add_argument("--parent-id", required=True)
+    ap.add_argument("--input-fcs-name", required=True)
+    ap.add_argument("--separator", choices=["comma", "tab"], required=True)
+    ap.add_argument("--evaluation-mode", choices=["multiclass", "rare"], required=True)
+    ap.add_argument("--target")
+    ap.add_argument("--n-events", type=int, required=True)
+    ap.add_argument("--n-markers", type=int, required=True)
+    ap.add_argument("--expected-evaluable", type=int)
+    ap.add_argument("--n-populations", type=int)
+    ap.add_argument("--workers", type=int, default=2)
+    ap.add_argument("--timeout-seconds", type=int, default=3600)
+    a = ap.parse_args()
+    parent = a.parent.resolve()
+    repo = a.source_repo.resolve()
+    jar = a.release_jar.resolve()
+    java = a.java.resolve()
+    data = a.data.resolve()
+    protocol = a.protocol.resolve()
+    out = a.output.resolve()
+    out.mkdir(parents=True, exist_ok=False)
+    runs = out / "runs"
+    runs.mkdir()
+    helper = Path(__file__).with_name("run_official_xshift.py")
+    base = Path(__file__).with_name("run_xshift_nilsson_fixedK20_30repeat.py")
+    evaluator = Path(__file__).with_name("evaluate_xshift_cross_dataset.py")
+    pm = json.loads((parent / "run_manifest.json").read_text(encoding="utf-8"))
+    input_fcs = parent / a.input_fcs_name
+    config = parent / "importConfig.txt"
+    input_matrix, names = read_fcs(input_fcs)
+    parent_labels = np.load(parent / "cluster_ids_all_events.npy", allow_pickle=False)
+    if (
+        pm["experiment_id"] != a.parent_id
+        or not pm["all_checks_passed"]
+        or pm.get("xshift_completion_mode") != "stopped_after_cluster_output_before_mst_layout"
+        or input_matrix.shape != (a.n_events, a.n_markers)
+        or parent_labels.shape != (a.n_events,)
+    ):
+        raise ValueError("parent contract")
+    parent_jar = Path(
+        json.loads((parent / "xshift_execution.json").read_text(encoding="utf-8"))["command"][3]
+    )
+    if sha256(parent_jar) != sha256(jar):
+        raise ValueError("jar mismatch")
+    commit = subprocess.run(
+        ["git", "-C", str(repo), "rev-parse", "29-Jun-2017^{}"],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    source = subprocess.run(
+        [
+            "git",
+            "-C",
+            str(repo),
+            "show",
+            "29-Jun-2017^{}:src/vortex/clustering/XShiftClustering.java",
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    with zipfile.ZipFile(jar) as z:
+        cls = z.read("util/Shuffle.class")
+    refs = class_methodrefs(cls)
+    contract = {
+        "tag_commit": commit,
+        "source_sha256": hashlib.sha256(source.encode()).hexdigest(),
+        "source_has_shuffle_initialization": "new Shuffle<Datapoint>()).shuffleCopyArray" in source,
+        "source_has_math_random_fallback": "Math.random() * (numCells)" in source,
+        "shuffle_class_sha256": hashlib.sha256(cls).hexdigest(),
+        "default_random_constructor_present": ("java/util/Random", "<init>", "()V") in refs,
+        "seeded_random_constructor_present": ("java/util/Random", "<init>", "(J)V") in refs,
+        "cli_seed_interface": False,
+    }
+    (out / "randomness_source_contract.json").write_text(
+        json.dumps(contract, indent=2) + "\n", encoding="utf-8"
+    )
+    if (
+        commit != "fda75cf79980222da663185e2a6a72b442b9aff3"
+        or not contract["source_has_shuffle_initialization"]
+        or not contract["source_has_math_random_fallback"]
+        or not contract["default_random_constructor_present"]
+        or contract["seeded_random_constructor_present"]
+    ):
+        raise ValueError("random contract")
+    raw = (
+        pd.read_csv(data, sep="\t" if a.separator == "tab" else ",", usecols=["label"])["label"]
+        .astype(str)
+        .to_numpy()
+    )
+    if a.evaluation_mode == "multiclass":
+        ev = raw != "unassigned"
+        truth = raw[ev]
+    else:
+        ev = np.ones(len(raw), dtype=bool)
+        truth = raw
+    if (
+        len(raw) != a.n_events
+        or a.evaluation_mode == "multiclass"
+        and (int(ev.sum()) != a.expected_evaluable or np.unique(truth).size != a.n_populations)
+        or a.evaluation_mode == "rare"
+        and (not a.target or np.sum(truth == a.target) == 0)
+    ):
+        raise ValueError("truth contract")
+    cmd = [str(java), "-Xmx4G", "-cp", str(jar), "standalone.Xshift", "20"]
+    inputs = {
+        "input_fcs": sha256(input_fcs),
+        "config": sha256(config),
+        "jar": sha256(jar),
+        "java": sha256(java),
+        "data": sha256(data),
+        "mst_helper": sha256(helper),
+        "base_helper": sha256(base),
+        "evaluator": sha256(evaluator),
+    }
+    (out / "input_hashes.json").write_text(json.dumps(inputs, indent=2) + "\n", encoding="utf-8")
+
+    def one(rep: int) -> dict:
+        d = runs / f"repeat{rep:03d}"
+        d.mkdir()
+        (d / "importConfig.txt").write_bytes(config.read_bytes())
+        (d / "fcsFileList.txt").write_text(str(input_fcs) + "\n", encoding="utf-8")
+        info = run_xshift_until_cluster_output(cmd, d, a.n_events, names, a.timeout_seconds)
+        cand = list((d / "out").glob("*.fcs"))
+        ok = False
+        detail = ""
+        nc = None
+        lh = None
+        if (
+            info["cluster_output_complete_before_stop"]
+            and info["mst_stage_observed"]
+            and info["completion_mode"] == "stopped_after_cluster_output_before_mst_layout"
+            and len(cand) == 1
+        ):
+            m, n = read_fcs(cand[0])
+            v = m[:, -1]
+            ok = (
+                m.shape == (a.n_events, a.n_markers + 1)
+                and n[:-1] == names
+                and n[-1].lower().replace("_", "") == "clusterid"
+                and np.all(np.isfinite(v))
+                and np.allclose(v, np.rint(v))
+                and np.array_equal(m[:, :-1], input_matrix)
+            )
+            if ok:
+                lab = np.rint(v).astype(np.int32)
+                np.save(d / "cluster_ids_all_events.npy", lab)
+                lh = sha256(d / "cluster_ids_all_events.npy")
+                u, c = np.unique(lab, return_counts=True)
+                nc = len(u)
+                pd.DataFrame({"cluster_id": u, "events": c}).to_csv(
+                    d / "cluster_sizes.csv", index=False
+                )
+            detail = f"shape={m.shape}; marker_exact={np.array_equal(m[:, :-1], input_matrix)}"
+        rec = {
+            "repeat": rep,
+            **info,
+            "all_checks_passed": ok,
+            "detail": detail,
+            "n_clusters": nc,
+            "labels_sha256": lh,
+        }
+        (d / "run_manifest.json").write_text(
+            json.dumps(rec, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        )
+        return rec
+
+    records = []
+    with ThreadPoolExecutor(max_workers=a.workers) as pool:
+        fs = {pool.submit(one, r): r for r in range(30)}
+        for f in as_completed(fs):
+            rec = f.result()
+            records.append(rec)
+            print(
+                f"REPEAT_DONE repeat={rec['repeat']:03d} pass={rec['all_checks_passed']} runtime={rec['runtime_seconds']:.2f}s mode={rec['completion_mode']}",
+                flush=True,
+            )
+    records.sort(key=lambda x: x["repeat"])
+    pd.DataFrame(records).to_csv(out / "execution_index.csv", index=False)
+    rows = []
+    detail_frames = []
+    parts = []
+    parent_rows = []
+    for rec in records:
+        if not rec["all_checks_passed"]:
+            continue
+        rep = rec["repeat"]
+        lab = np.load(runs / f"repeat{rep:03d}" / "cluster_ids_all_events.npy", allow_pickle=False)
+        parts.append(lab)
+        if a.evaluation_mode == "multiclass":
+            met, df, _, _, _ = evaluate_multiclass(truth, lab[ev], lab)
+        else:
+            met, df, _ = evaluate_rare_target(truth, lab, a.target)
+        rows.append(
+            {
+                "repeat": rep,
+                "runtime_seconds": rec["runtime_seconds"],
+                "partition_sha256": hashlib.sha256(lab.tobytes()).hexdigest(),
+                **met,
+            }
+        )
+        df.insert(0, "repeat", rep)
+        detail_frames.append(df)
+        parent_rows.append(
+            {
+                "repeat": rep,
+                "parent_partition_ari": adjusted_rand_score(parent_labels, lab),
+                "parent_exact_label_fraction": float(np.mean(parent_labels == lab)),
+            }
+        )
+    rf = pd.DataFrame(rows)
+    rf.to_csv(out / "run_level_metrics.csv", index=False)
+    pd.concat(detail_frames, ignore_index=True).to_csv(
+        out
+        / (
+            "population_level_metrics.csv"
+            if a.evaluation_mode == "multiclass"
+            else "target_cluster_metrics.csv"
+        ),
+        index=False,
+    )
+    pd.DataFrame(parent_rows).to_csv(out / "parent_partition_comparison.csv", index=False)
+    pairs = []
+    for i in range(len(parts)):
+        for j in range(i + 1, len(parts)):
+            pairs.append(
+                {
+                    "repeat_a": int(rf.iloc[i]["repeat"]),
+                    "repeat_b": int(rf.iloc[j]["repeat"]),
+                    "partition_ari": adjusted_rand_score(parts[i], parts[j]),
+                }
+            )
+    pf = pd.DataFrame(pairs)
+    pf.to_csv(out / "pairwise_partition_ari.csv", index=False)
+    metric_names = (
+        (
+            "runtime_seconds",
+            "n_predicted_clusters_all_events",
+            "ari",
+            "macro_precision",
+            "macro_recall",
+            "macro_f1",
+            "weighted_f1",
+            "hungarian_accuracy",
+            "weighted_evaluable_cluster_purity",
+        )
+        if a.evaluation_mode == "multiclass"
+        else (
+            "runtime_seconds",
+            "n_predicted_clusters_all_events",
+            "ari",
+            "target_precision",
+            "target_recall",
+            "target_f1",
+            "target_f2",
+        )
+    )
+    summary = []
+    for i, k in enumerate(metric_names):
+        v = rf[k].to_numpy(float)
+        lo, hi = bootstrap_ci(v, 20260911 + i)
+        summary.append(
+            {
+                "metric": k,
+                "n": len(v),
+                "mean": v.mean(),
+                "sd": v.std(ddof=1),
+                "median": np.median(v),
+                "min": v.min(),
+                "max": v.max(),
+                "bootstrap_mean_ci_low": lo,
+                "bootstrap_mean_ci_high": hi,
+            }
+        )
+    pd.DataFrame(summary).to_csv(out / "endpoint_descriptive_statistics.csv", index=False)
+    success = sum(bool(r["all_checks_passed"]) for r in records)
+    unique = int(rf.partition_sha256.nunique()) if len(rf) else 0
+    checks = []
+
+    def ck(n, p, d):
+        checks.append({"check": n, "passed": bool(p), "detail": d})
+
+    ck(
+        "parent_manifest",
+        pm["experiment_id"] == a.parent_id and pm["all_checks_passed"],
+        pm["experiment_id"],
+    )
+    ck(
+        "randomness_source",
+        contract["default_random_constructor_present"]
+        and not contract["seeded_random_constructor_present"],
+        json.dumps(contract),
+    )
+    ck(
+        "execution_accounting",
+        len(records) == 30 and {r["repeat"] for r in records} == set(range(30)),
+        f"rows={len(records)}",
+    )
+    ck("all_runs_successful", success == 30, f"success={success}")
+    ck(
+        "all_bypass_guards",
+        all(
+            r["mst_stage_observed"]
+            and r["cluster_output_complete_before_stop"]
+            and r["completion_mode"] == "stopped_after_cluster_output_before_mst_layout"
+            for r in records
+        ),
+        "30/30",
+    )
+    ck("run_metrics", len(rf) == success and rf.repeat.nunique() == success, f"rows={len(rf)}")
+    ck(
+        "detail_metrics",
+        sum(len(x) for x in detail_frames) > 0,
+        f"rows={sum(len(x) for x in detail_frames)}",
+    )
+    ck("pairwise_count", len(pf) == success * (success - 1) // 2, f"rows={len(pf)}")
+    ck(
+        "input_hash_uniformity",
+        all(
+            sha256(runs / f"repeat{r:03d}" / "importConfig.txt") == inputs["config"]
+            for r in range(30)
+        ),
+        "30/30",
+    )
+    ck(
+        "finite_primary",
+        np.isfinite(rf.select_dtypes(include=[np.number]).to_numpy()).all(),
+        "finite",
+    )
+    cf = pd.DataFrame(checks)
+    cf.to_csv(out / "checks.csv", index=False)
+    pv = pf.partition_ari.to_numpy(float)
+    manifest = {
+        "experiment_id": a.experiment_id,
+        "completed_utc": datetime.now(timezone.utc).isoformat(),
+        "dataset": a.dataset,
+        "evaluation_mode": a.evaluation_mode,
+        "protocol": str(protocol),
+        "protocol_sha256": sha256(protocol),
+        "script": str(Path(__file__).resolve()),
+        "script_sha256": sha256(Path(__file__).resolve()),
+        "mst_helper": str(helper),
+        "mst_helper_sha256": sha256(helper),
+        "base_helper": str(base),
+        "base_helper_sha256": sha256(base),
+        "evaluator_script": str(evaluator),
+        "evaluator_script_sha256": sha256(evaluator),
+        "parent": str(parent),
+        "parent_manifest_sha256": sha256(parent / "run_manifest.json"),
+        "source_repo": str(repo),
+        "tag_commit": commit,
+        "release_jar": str(jar),
+        "release_jar_sha256": sha256(jar),
+        "java": str(java),
+        "java_sha256": sha256(java),
+        "data": str(data),
+        "data_sha256": sha256(data),
+        "n_events": a.n_events,
+        "n_markers": a.n_markers,
+        "workers": a.workers,
+        "repeat_not_seed": True,
+        "mst_bypass_after_validated_cluster_output": True,
+        "runs_attempted": 30,
+        "runs_successful": success,
+        "runs_failed": 30 - success,
+        "unique_partition_hashes": unique,
+        "pairwise_partition_ari_mean": float(pv.mean()),
+        "pairwise_partition_ari_min": float(pv.min()),
+        "pairwise_partition_ari_max": float(pv.max()),
+        "checks_passed": int(cf.passed.sum()),
+        "checks_total": len(cf),
+        "all_checks_passed": bool(cf.passed.all()),
+        "python": sys.version,
+        "python_executable": sys.executable,
+        "platform": platform.platform(),
+    }
+    (out / "run_manifest.json").write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+    endpoint = "macro_f1" if a.evaluation_mode == "multiclass" else "target_f1"
+    (out / "scientific_summary.md").write_text(
+        f"# {a.experiment_id} Thirty native X-shift repeats on {a.dataset} at fixed K=20\n\nSuccessful runs: {success}/30. Each run was stopped only after both the MST log and the complete clustered FCS guard conditions were met. Unique partitions={unique}; pairwise ARI range=[{pv.min():.6f},{pv.max():.6f}]; {endpoint} range=[{rf[endpoint].min():.6f},{rf[endpoint].max():.6f}]. Repeats are not seeds, and MST layout did not complete.\n",
+        encoding="utf-8",
+    )
+    arts = [p for p in out.rglob("*") if p.is_file()]
+    (out / "artifact_hashes.json").write_text(
+        json.dumps({str(p.relative_to(out)): sha256(p) for p in arts}, ensure_ascii=False, indent=2)
+        + "\n",
+        encoding="utf-8",
+    )
+    print(json.dumps(manifest, ensure_ascii=False))
+    return 0 if manifest["all_checks_passed"] else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

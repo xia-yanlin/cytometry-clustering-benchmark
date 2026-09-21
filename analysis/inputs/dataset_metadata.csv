@@ -1,0 +1,6 @@
+Dataset,ExperimentHub,Total events,Evaluable events,Markers,Reference populations,Reference contract,Analysis transform,Fit-event policy
+Levine_13dim,EH2242,167044,81747,13,24,24 manual populations; other cells not evaluable,Already transformed; no second arcsinh,"Regime specific: full-event, subsampled training, or labeled-fit contrast; see Table 2"
+Levine_32dim,EH2240,265627,104184,32,14,14 manual populations; unassigned excluded from evaluation,arcsinh(x/5) once,"Regime specific: full-event, subsampled training, or labeled-fit contrast; see Table 2"
+Samusik_01,EH2244,86864,53173,39,24,24 manual populations; unassigned excluded from evaluation,arcsinh(x/5) once,"Regime specific: full-event, subsampled training, or labeled-fit contrast; see Table 2"
+Nilsson_rare,EH2248,44140,44140,13,1,One target (358 events) + heterogeneous other,arcsinh(x/150) once,"Regime specific: full-event, subsampled training, or labeled-fit contrast; see Table 2"
+Mosmann_rare,EH2250,396460,396460,14,1,One target (109 events) + heterogeneous other,arcsinh(x/150) once,"Regime specific: full-event, subsampled training, or labeled-fit contrast; see Table 2"

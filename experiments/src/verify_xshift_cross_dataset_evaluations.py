@@ -11,7 +11,6 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-
 RUNS = {
     "Samusik_01": "EXP-011A_xshift_samusik_evaluation_20260910",
     "Nilsson_rare": "EXP-011B_xshift_nilsson_evaluation_20260910",
@@ -48,9 +47,7 @@ def main() -> int:
     summaries: list[dict] = []
 
     def check(dataset: str, name: str, passed: bool, detail: str) -> None:
-        checks.append(
-            {"dataset": dataset, "check": name, "passed": bool(passed), "detail": detail}
-        )
+        checks.append({"dataset": dataset, "check": name, "passed": bool(passed), "detail": detail})
 
     for dataset, run_name in RUNS.items():
         run = runs_root / run_name
@@ -61,15 +58,30 @@ def main() -> int:
         cluster_diagnostics = pd.read_csv(run / "cluster_level_diagnostics.csv")
         indices = np.load(run / "evaluation_indices.npy", allow_pickle=False)
 
-        check(dataset, "manifest_and_checks_pass", bool(manifest["all_checks_passed"]) and truthy_csv(evaluation_checks["passed"]), f"manifest={manifest['all_checks_passed']}, checks={len(evaluation_checks)}")
-        check(dataset, "contingency_sum", int(contingency.to_numpy().sum()) == int(metrics["n_evaluable_events"]), f"contingency={int(contingency.to_numpy().sum())}, metrics={int(metrics['n_evaluable_events'])}")
+        check(
+            dataset,
+            "manifest_and_checks_pass",
+            bool(manifest["all_checks_passed"]) and truthy_csv(evaluation_checks["passed"]),
+            f"manifest={manifest['all_checks_passed']}, checks={len(evaluation_checks)}",
+        )
+        check(
+            dataset,
+            "contingency_sum",
+            int(contingency.to_numpy().sum()) == int(metrics["n_evaluable_events"]),
+            f"contingency={int(contingency.to_numpy().sum())}, metrics={int(metrics['n_evaluable_events'])}",
+        )
         indices_valid = bool(
             len(indices) == int(metrics["n_evaluable_events"])
             and np.all(np.diff(indices) > 0)
             and int(indices[0]) >= 0
             and int(indices[-1]) < int(metrics["n_total_events"])
         )
-        check(dataset, "evaluation_indices", indices_valid, f"n={len(indices)}, first={int(indices[0])}, last={int(indices[-1])}")
+        check(
+            dataset,
+            "evaluation_indices",
+            indices_valid,
+            f"n={len(indices)}, first={int(indices[0])}, last={int(indices[-1])}",
+        )
 
         if str(metrics["evaluation_mode"]).startswith("multiclass"):
             populations = pd.read_csv(run / "population_level_metrics.csv")
@@ -95,19 +107,15 @@ def main() -> int:
             )
             best = ordered.iloc[0]
             structure_valid = bool(
-                int(cluster_diagnostics["cluster_size"].sum())
-                == int(metrics["n_total_events"])
+                int(cluster_diagnostics["cluster_size"].sum()) == int(metrics["n_total_events"])
                 and int(cluster_diagnostics["tp"].sum()) == int(metrics["target_events"])
-                and int(best["predicted_cluster"])
-                == int(metrics["selected_target_cluster"])
+                and int(best["predicted_cluster"]) == int(metrics["selected_target_cluster"])
                 and target in contingency.index.astype(str)
             )
             detail = f"cluster_total={int(cluster_diagnostics['cluster_size'].sum())}, target_tp_sum={int(cluster_diagnostics['tp'].sum())}, best={int(best['predicted_cluster'])}"
         check(dataset, "derived_tables_conserve_counts", structure_valid, detail)
 
-        artifact_inventory = json.loads(
-            (run / "artifact_hashes.json").read_text(encoding="utf-8")
-        )
+        artifact_inventory = json.loads((run / "artifact_hashes.json").read_text(encoding="utf-8"))
         artifact_failures = [
             path
             for path, expected_hash in artifact_inventory.items()
@@ -155,10 +163,10 @@ def main() -> int:
         json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
     audit = [
-        "# EXP-011V X-shift跨数据集评价独立核验",
+        "# EXP-011V Independent verification of cross-dataset X-shift evaluations",
         "",
-        f"四个评价运行共{len(checks_frame)}项守恒与哈希检查，{'全部通过' if manifest['all_checks_passed'] else '存在失败'}。",
-        "核验覆盖manifest、原评价检查、列联表总数、评价索引、派生表计数和制品SHA-256。",
+        f"Across four evaluation runs, {len(checks_frame)} conservation and hash checks were performed; {'all passed' if manifest['all_checks_passed'] else 'one or more failed'}.",
+        "Verification covers manifests, original evaluation checks, contingency-table totals, evaluation indices, derived-table counts, and artifact SHA-256 hashes.",
     ]
     (output / "audit.md").write_text("\n".join(audit) + "\n", encoding="utf-8")
     print(json.dumps(manifest, ensure_ascii=False))

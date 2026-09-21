@@ -15,11 +15,9 @@ import anndata as ad
 import flowsom as fs
 import numpy as np
 import pandas as pd
+from evaluate_xshift_cross_dataset import evaluate_multiclass, metrics_are_valid
 from flowsom.models import map_data_to_codes
 from loguru import logger
-
-from evaluate_xshift_cross_dataset import evaluate_multiclass, metrics_are_valid
-
 
 GRID_RLEN = [
     (10, 10),
@@ -63,7 +61,9 @@ def write_json(path: Path, value: dict | list) -> None:
     path.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
-def load_data(config_path: Path, dataset: str) -> tuple[Path, pd.DataFrame, list[str], np.ndarray, np.ndarray]:
+def load_data(
+    config_path: Path, dataset: str
+) -> tuple[Path, pd.DataFrame, list[str], np.ndarray, np.ndarray]:
     config = json.loads(config_path.read_text(encoding="utf-8"))
     spec = config["datasets"][dataset]
     source = (Path(config["data_root"]) / dataset / spec["filename"]).resolve()
@@ -130,7 +130,9 @@ def write_progress(
     progress = {
         "experiment_id": experiment_id,
         "updated_utc": datetime.now(timezone.utc).isoformat(),
-        "status": "failed" if failed_run else ("complete" if completed == len(names) and passed == len(names) else "in_progress"),
+        "status": "failed"
+        if failed_run
+        else ("complete" if completed == len(names) and passed == len(names) else "in_progress"),
         "protocol": str(protocol),
         "protocol_sha256": sha256(protocol),
         "script": str(script),
@@ -147,7 +149,9 @@ def write_progress(
         "completed_runs": completed,
         "passed_runs": passed,
         "failed_run": failed_run,
-        "all_runs_complete_and_passed": completed == len(names) and passed == len(names) and failed_run is None,
+        "all_runs_complete_and_passed": completed == len(names)
+        and passed == len(names)
+        and failed_run is None,
     }
     write_json(output / "progress_manifest.json", progress)
     return progress
@@ -182,27 +186,44 @@ def main() -> int:
     output = args.output.resolve()
     script = Path(__file__).resolve()
     qualification_manifest_path = qualification / "run_manifest.json"
-    if not config_path.is_file() or not protocol.is_file() or not qualification_manifest_path.is_file():
+    if (
+        not config_path.is_file()
+        or not protocol.is_file()
+        or not qualification_manifest_path.is_file()
+    ):
         raise FileNotFoundError("Config, protocol, or qualification manifest is missing")
     expected_protocol_token = "levine32" if args.dataset == "Levine_32dim" else "samusik"
     if expected_protocol_token not in protocol.name.lower():
         raise ValueError(f"Protocol does not match dataset {args.dataset}: {protocol.name}")
     qualification_manifest = json.loads(qualification_manifest_path.read_text(encoding="utf-8"))
-    if not qualification_manifest.get("all_checks_passed") or qualification_manifest.get("flowsom_version") != "0.2.2":
+    if (
+        not qualification_manifest.get("all_checks_passed")
+        or qualification_manifest.get("flowsom_version") != "0.2.2"
+    ):
         raise RuntimeError("FlowSOM qualification run is not eligible")
     if importlib.metadata.version("flowsom") != "0.2.2":
         raise RuntimeError("This runner requires flowsom==0.2.2")
 
     source, frame, markers, matrix, labels = load_data(config_path, args.dataset)
-    if matrix.shape != (contract["total_events"], contract["n_markers"]) or len(markers) != contract["n_markers"]:
+    if (
+        matrix.shape != (contract["total_events"], contract["n_markers"])
+        or len(markers) != contract["n_markers"]
+    ):
         raise ValueError(f"Unexpected data contract: {matrix.shape}; markers={len(markers)}")
     evaluable = labels != "unassigned"
-    if int(evaluable.sum()) != contract["evaluable_events"] or len(np.unique(labels[evaluable])) != contract["true_populations"]:
+    if (
+        int(evaluable.sum()) != contract["evaluable_events"]
+        or len(np.unique(labels[evaluable])) != contract["true_populations"]
+    ):
         raise ValueError("Unexpected reference-label contract")
 
     if output.exists():
         existing = json.loads((output / "progress_manifest.json").read_text(encoding="utf-8"))
-        if existing["experiment_id"] != args.experiment_id or existing["protocol_sha256"] != sha256(protocol) or existing["source_sha256"] != sha256(source):
+        if (
+            existing["experiment_id"] != args.experiment_id
+            or existing["protocol_sha256"] != sha256(protocol)
+            or existing["source_sha256"] != sha256(source)
+        ):
             raise RuntimeError("Cannot resume: protocol or source hash differs")
     else:
         output.mkdir(parents=True)
@@ -214,7 +235,9 @@ def main() -> int:
         training_indices = np.load(training_indices_path, allow_pickle=False)
     else:
         rng = np.random.default_rng(args.training_sample_seed)
-        training_indices = np.sort(rng.choice(len(matrix), size=args.training_size, replace=False)).astype(np.int64)
+        training_indices = np.sort(
+            rng.choice(len(matrix), size=args.training_size, replace=False)
+        ).astype(np.int64)
         np.save(training_indices_path, training_indices)
     if (
         training_indices.shape != (args.training_size,)
@@ -248,7 +271,9 @@ def main() -> int:
             if (run_dir / "run_manifest.json").is_file():
                 continue
             if run_dir.exists():
-                raise RuntimeError(f"Preserved incomplete run requires a new experiment revision: {run_dir}")
+                raise RuntimeError(
+                    f"Preserved incomplete run requires a new experiment revision: {run_dir}"
+                )
             if args.max_new_runs is not None and new_runs >= args.max_new_runs:
                 progress = write_progress(
                     output,
@@ -292,8 +317,10 @@ def main() -> int:
                 np.save(run_dir / "som_codes.npy", codes)
                 np.save(run_dir / "node_to_metacluster.npy", node_to_meta)
 
-                metrics, population_frame, cluster_frame, mapping_frame, contingency_frame = evaluate_multiclass(
-                    labels[evaluable], metacluster_labels[evaluable], metacluster_labels
+                metrics, population_frame, cluster_frame, mapping_frame, contingency_frame = (
+                    evaluate_multiclass(
+                        labels[evaluable], metacluster_labels[evaluable], metacluster_labels
+                    )
                 )
                 metric_valid, metric_detail = metrics_are_valid(metrics)
                 unsupervised = {
@@ -309,22 +336,75 @@ def main() -> int:
                     checks.append({"check": name, "passed": bool(passed), "detail": detail})
 
                 n_nodes = side * side
-                check("qualification_link", qualification_manifest["all_checks_passed"], qualification_manifest_path.as_posix())
+                check(
+                    "qualification_link",
+                    qualification_manifest["all_checks_passed"],
+                    qualification_manifest_path.as_posix(),
+                )
                 check("source_hash", sha256(source) == contract["source_sha256"], sha256(source))
-                check("training_indices", len(training_indices) == 20000 and np.unique(training_indices).size == 20000, sha256(training_indices_path))
-                check("event_shapes", node_labels.shape == metacluster_labels.shape == bmu_distances.shape == (contract["total_events"],), str((node_labels.shape, metacluster_labels.shape, bmu_distances.shape)))
-                check("node_contract", codes.shape == (n_nodes, contract["n_markers"]) and node_to_meta.shape == (n_nodes,) and int(node_labels.min()) >= 0 and int(node_labels.max()) < n_nodes, f"codes={codes.shape}; node_range={int(node_labels.min())}-{int(node_labels.max())}")
-                check("metacluster_contract", len(np.unique(node_to_meta)) == 40 and set(np.unique(metacluster_labels)).issubset(set(np.unique(node_to_meta))), f"node_meta={np.unique(node_to_meta).size}; occupied={np.unique(metacluster_labels).size}")
-                check("finite_outputs", np.isfinite(codes).all() and np.isfinite(bmu_distances).all() and bool(np.all(bmu_distances >= 0)), f"distance_range={float(bmu_distances.min())}-{float(bmu_distances.max())}")
-                check("evaluation_contract", metrics["n_evaluable_events"] == contract["evaluable_events"] and metrics["n_true_populations"] == contract["true_populations"], f"evaluable={metrics['n_evaluable_events']}; populations={metrics['n_true_populations']}")
+                check(
+                    "training_indices",
+                    len(training_indices) == 20000 and np.unique(training_indices).size == 20000,
+                    sha256(training_indices_path),
+                )
+                check(
+                    "event_shapes",
+                    node_labels.shape
+                    == metacluster_labels.shape
+                    == bmu_distances.shape
+                    == (contract["total_events"],),
+                    str((node_labels.shape, metacluster_labels.shape, bmu_distances.shape)),
+                )
+                check(
+                    "node_contract",
+                    codes.shape == (n_nodes, contract["n_markers"])
+                    and node_to_meta.shape == (n_nodes,)
+                    and int(node_labels.min()) >= 0
+                    and int(node_labels.max()) < n_nodes,
+                    f"codes={codes.shape}; node_range={int(node_labels.min())}-{int(node_labels.max())}",
+                )
+                check(
+                    "metacluster_contract",
+                    len(np.unique(node_to_meta)) == 40
+                    and set(np.unique(metacluster_labels)).issubset(set(np.unique(node_to_meta))),
+                    f"node_meta={np.unique(node_to_meta).size}; occupied={np.unique(metacluster_labels).size}",
+                )
+                check(
+                    "finite_outputs",
+                    np.isfinite(codes).all()
+                    and np.isfinite(bmu_distances).all()
+                    and bool(np.all(bmu_distances >= 0)),
+                    f"distance_range={float(bmu_distances.min())}-{float(bmu_distances.max())}",
+                )
+                check(
+                    "evaluation_contract",
+                    metrics["n_evaluable_events"] == contract["evaluable_events"]
+                    and metrics["n_true_populations"] == contract["true_populations"],
+                    f"evaluable={metrics['n_evaluable_events']}; populations={metrics['n_true_populations']}",
+                )
                 check("metric_ranges", metric_valid, metric_detail)
                 checks_frame = pd.DataFrame(checks)
                 checks_frame.to_csv(run_dir / "qualification_checks.csv", index=False)
-                pd.DataFrame([{"dataset": args.dataset, "algorithm": "official_Python_FlowSOM_0.2.2", "grid_side": side, "rlen": rlen, "seed": seed, "n_metaclusters_requested": 40, **unsupervised, **metrics}]).to_csv(run_dir / "run_level_metrics.csv", index=False)
+                pd.DataFrame(
+                    [
+                        {
+                            "dataset": args.dataset,
+                            "algorithm": "official_Python_FlowSOM_0.2.2",
+                            "grid_side": side,
+                            "rlen": rlen,
+                            "seed": seed,
+                            "n_metaclusters_requested": 40,
+                            **unsupervised,
+                            **metrics,
+                        }
+                    ]
+                ).to_csv(run_dir / "run_level_metrics.csv", index=False)
                 population_frame.to_csv(run_dir / "population_level_metrics.csv", index=False)
                 cluster_frame.to_csv(run_dir / "metacluster_level_diagnostics.csv", index=False)
                 mapping_frame.to_csv(run_dir / "hungarian_mapping.csv", index=False)
-                contingency_frame.to_csv(run_dir / "contingency_true_by_predicted.csv", index_label="true_population")
+                contingency_frame.to_csv(
+                    run_dir / "contingency_true_by_predicted.csv", index_label="true_population"
+                )
 
                 manifest = {
                     "experiment_id": args.experiment_id,
@@ -339,8 +419,12 @@ def main() -> int:
                     "protocol_sha256": sha256(protocol),
                     "script": str(script),
                     "script_sha256": sha256(script),
-                    "metric_module": str((script.parent / "evaluate_xshift_cross_dataset.py").resolve()),
-                    "metric_module_sha256": sha256(script.parent / "evaluate_xshift_cross_dataset.py"),
+                    "metric_module": str(
+                        (script.parent / "evaluate_xshift_cross_dataset.py").resolve()
+                    ),
+                    "metric_module_sha256": sha256(
+                        script.parent / "evaluate_xshift_cross_dataset.py"
+                    ),
                     "qualification_run": str(qualification),
                     "qualification_manifest_sha256": sha256(qualification_manifest_path),
                     "training_size": args.training_size,
@@ -369,23 +453,49 @@ def main() -> int:
                         [
                             f"# {args.experiment_id} {run_name}",
                             "",
-                            f"FlowSOM 0.2.2；{args.dataset}；20,000无标签固定训练样本映射全部{contract['total_events']:,}事件；{side}×{side}网格；rlen={rlen}；seed={seed}；元簇数固定40。",
+                            f"FlowSOM 0.2.2; {args.dataset}; a fixed unlabeled 20,000-event training sample mapped to all {contract['total_events']:,} events; {side}×{side} grid; rlen={rlen}; seed={seed}; 40 fixed metaclusters.",
                             f"median BMU distance={unsupervised['median_bmu_distance']:.6f}；ARI={metrics['ari']:.6f}；Macro P/R/F1={metrics['macro_precision']:.6f}/{metrics['macro_recall']:.6f}/{metrics['macro_f1']:.6f}。",
-                            f"完整性检查：{int(checks_frame['passed'].sum())}/{len(checks_frame)}。标签只用于映射完成后的评价。",
+                            f"Integrity checks passed: {int(checks_frame['passed'].sum())}/{len(checks_frame)}. Labels were used only for evaluation after mapping.",
                         ]
                     )
                     + "\n",
                     encoding="utf-8",
                 )
                 artifacts = [path for path in run_dir.iterdir() if path.is_file()]
-                write_json(run_dir / "artifact_hashes.json", {str(path): sha256(path) for path in artifacts})
+                write_json(
+                    run_dir / "artifact_hashes.json",
+                    {str(path): sha256(path) for path in artifacts},
+                )
                 if not manifest["all_checks_passed"]:
                     raise RuntimeError(f"Run integrity checks failed: {run_name}")
                 new_runs += 1
-                print(json.dumps({"run": run_name, "runtime_seconds": runtime, **unsupervised, "ari": metrics["ari"], "macro_f1": metrics["macro_f1"], "checks": f"{manifest['checks_passed']}/{manifest['checks_total']}"}, ensure_ascii=False), flush=True)
+                print(
+                    json.dumps(
+                        {
+                            "run": run_name,
+                            "runtime_seconds": runtime,
+                            **unsupervised,
+                            "ari": metrics["ari"],
+                            "macro_f1": metrics["macro_f1"],
+                            "checks": f"{manifest['checks_passed']}/{manifest['checks_total']}",
+                        },
+                        ensure_ascii=False,
+                    ),
+                    flush=True,
+                )
             except Exception as error:
-                (run_dir / "failure_traceback.txt").write_text(traceback.format_exc(), encoding="utf-8")
-                write_json(run_dir / "failure.json", {"run_name": run_name, "failed_utc": datetime.now(timezone.utc).isoformat(), "exception": repr(error), "scientific_output_eligible": False})
+                (run_dir / "failure_traceback.txt").write_text(
+                    traceback.format_exc(), encoding="utf-8"
+                )
+                write_json(
+                    run_dir / "failure.json",
+                    {
+                        "run_name": run_name,
+                        "failed_utc": datetime.now(timezone.utc).isoformat(),
+                        "exception": repr(error),
+                        "scientific_output_eligible": False,
+                    },
+                )
                 progress = write_progress(
                     output,
                     experiment_id=args.experiment_id,

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import hashlib
-import json
 import numbers
 import platform
 import subprocess
@@ -11,14 +10,14 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from sklearn.metrics import adjusted_rand_score
-
 import run_remaining_xshift_pipeline as base
-
+from sklearn.metrics import adjusted_rand_score
 
 SOURCE = base.EXP043
 OUTPUT = base.RUNS / "EXP-043-R1_xshift_cross_dataset_K_sensitivity_mode_aware_20260913"
-VERIFY = base.RUNS / "EXP-043V-R1_xshift_cross_dataset_K_sensitivity_independent_verification_20260913"
+VERIFY = (
+    base.RUNS / "EXP-043V-R1_xshift_cross_dataset_K_sensitivity_independent_verification_20260913"
+)
 PROTOCOL = base.ROOT / "protocols/EXP-043-R1_mode_aware_aggregation_correction.md"
 PIPELINE = base.PIPELINE
 
@@ -109,7 +108,9 @@ def main() -> int:
                 metrics_rows.append({"dataset": dataset, "knn_k": k, **metrics})
                 detail.insert(0, "knn_k", k)
                 detail.insert(0, "dataset", dataset)
-                (population_frames if spec["mode"] == "multiclass" else target_frames).append(detail)
+                (population_frames if spec["mode"] == "multiclass" else target_frames).append(
+                    detail
+                )
                 source_kind, manifest_path, labels_path = sources[k]
                 inventory.append(
                     {
@@ -139,19 +140,63 @@ def main() -> int:
         inventory_frame = pd.DataFrame(inventory).sort_values(["dataset", "knn_k"])
         pair_frame = pd.DataFrame(partition_rows).sort_values(["dataset", "knn_k"])
         metrics_frame.to_csv(OUTPUT / "sensitivity_metrics.csv", index=False)
-        pd.concat(population_frames, ignore_index=True).to_csv(OUTPUT / "population_level_metrics.csv", index=False)
-        pd.concat(target_frames, ignore_index=True).to_csv(OUTPUT / "target_cluster_metrics.csv", index=False)
+        pd.concat(population_frames, ignore_index=True).to_csv(
+            OUTPUT / "population_level_metrics.csv", index=False
+        )
+        pd.concat(target_frames, ignore_index=True).to_csv(
+            OUTPUT / "target_cluster_metrics.csv", index=False
+        )
         pair_frame.to_csv(OUTPUT / "partition_comparison_to_K20.csv", index=False)
         inventory_frame.to_csv(OUTPUT / "condition_inventory.csv", index=False)
         checks = [
-            {"check": "source_scientific_runs", "passed": len(entries) == 10 and all(base.load_json(path / "run_manifest.json").get("all_checks_passed") for path in entries.values()), "detail": "10/10 new conditions passed"},
-            {"check": "source_failed_aggregate_preserved", "passed": failed_manifest.get("all_checks_passed") is False and failed_manifest.get("checks_passed") == 7, "detail": "EXP-043 aggregate 7/8 retained"},
-            {"check": "fifteen_registered_conditions", "passed": len(metrics_frame) == 15 and not metrics_frame.duplicated(["dataset", "knn_k"]).any(), "detail": f"rows={len(metrics_frame)}"},
-            {"check": "frozen_design", "passed": set(metrics_frame.dataset) == set(base.DATASETS) and set(metrics_frame.knn_k) == {10, 20, 40}, "detail": "five datasets; K=10,20,40"},
-            {"check": "mode_aware_finite_metrics", "passed": applicable_finite, "detail": "finite values checked before task-specific wide-table union; structural NA permitted"},
-            {"check": "partition_comparisons", "passed": len(pair_frame) == 10 and pair_frame.partition_ari_to_k20.between(-1, 1).all(), "detail": f"rows={len(pair_frame)}"},
-            {"check": "inventory", "passed": len(inventory_frame) == 15, "detail": f"rows={len(inventory_frame)}"},
-            {"check": "no_label_selection", "passed": True, "detail": "K grid preregistered; labels posthoc only"},
+            {
+                "check": "source_scientific_runs",
+                "passed": len(entries) == 10
+                and all(
+                    base.load_json(path / "run_manifest.json").get("all_checks_passed")
+                    for path in entries.values()
+                ),
+                "detail": "10/10 new conditions passed",
+            },
+            {
+                "check": "source_failed_aggregate_preserved",
+                "passed": failed_manifest.get("all_checks_passed") is False
+                and failed_manifest.get("checks_passed") == 7,
+                "detail": "EXP-043 aggregate 7/8 retained",
+            },
+            {
+                "check": "fifteen_registered_conditions",
+                "passed": len(metrics_frame) == 15
+                and not metrics_frame.duplicated(["dataset", "knn_k"]).any(),
+                "detail": f"rows={len(metrics_frame)}",
+            },
+            {
+                "check": "frozen_design",
+                "passed": set(metrics_frame.dataset) == set(base.DATASETS)
+                and set(metrics_frame.knn_k) == {10, 20, 40},
+                "detail": "five datasets; K=10,20,40",
+            },
+            {
+                "check": "mode_aware_finite_metrics",
+                "passed": applicable_finite,
+                "detail": "finite values checked before task-specific wide-table union; structural NA permitted",
+            },
+            {
+                "check": "partition_comparisons",
+                "passed": len(pair_frame) == 10
+                and pair_frame.partition_ari_to_k20.between(-1, 1).all(),
+                "detail": f"rows={len(pair_frame)}",
+            },
+            {
+                "check": "inventory",
+                "passed": len(inventory_frame) == 15,
+                "detail": f"rows={len(inventory_frame)}",
+            },
+            {
+                "check": "no_label_selection",
+                "passed": True,
+                "detail": "K grid preregistered; labels posthoc only",
+            },
         ]
         check_frame = pd.DataFrame(checks)
         check_frame.to_csv(OUTPUT / "checks.csv", index=False)
@@ -179,13 +224,20 @@ def main() -> int:
         }
         base.write_json(OUTPUT / "run_manifest.json", manifest)
         (OUTPUT / "scientific_summary.md").write_text(
-            "# EXP-043-R1 跨数据集K敏感性只读收尾\n\n"
-            "10个新增运行及其事件级分区未改变。R1仅把有限值检查限定到各任务适用指标；"
-            "多群体/稀有任务宽表中的结构性不适用字段继续保留为空。\n",
+            "# EXP-043-R1 Read-only finalization of cross-dataset K sensitivity\n\n"
+            "The ten added runs and their event-level partitions are unchanged. R1 only limits finite-value checks to metrics applicable to each task; "
+            "structurally inapplicable fields in the multiclass and rare-population wide tables remain empty.\n",
             encoding="utf-8",
         )
-        own = sorted(path for path in OUTPUT.rglob("*") if path.is_file() and path.name != "artifact_hashes.json")
-        base.write_json(OUTPUT / "artifact_hashes.json", {str(path.relative_to(OUTPUT)): base.sha256(path) for path in own})
+        own = sorted(
+            path
+            for path in OUTPUT.rglob("*")
+            if path.is_file() and path.name != "artifact_hashes.json"
+        )
+        base.write_json(
+            OUTPUT / "artifact_hashes.json",
+            {str(path.relative_to(OUTPUT)): base.sha256(path) for path in own},
+        )
         if not all_passed:
             raise RuntimeError("EXP043-R1 checks failed")
 
@@ -205,20 +257,31 @@ def main() -> int:
         result = subprocess.run(command, text=True, capture_output=True)
         (PIPELINE / "verify_exp043_r1_stdout.log").write_text(result.stdout, encoding="utf-8")
         (PIPELINE / "verify_exp043_r1_stderr.log").write_text(result.stderr, encoding="utf-8")
-        base.write_json(PIPELINE / "verify_exp043_r1_execution.json", {"command": command, "exit_code": result.returncode})
+        base.write_json(
+            PIPELINE / "verify_exp043_r1_execution.json",
+            {"command": command, "exit_code": result.returncode},
+        )
         if result.returncode != 0:
-            raise RuntimeError(f"EXP043-R1 independent verification failed: {result.stderr[-1000:]}")
+            raise RuntimeError(
+                f"EXP043-R1 independent verification failed: {result.stderr[-1000:]}"
+            )
     verification_manifest = base.load_json(VERIFY / "run_manifest.json")
     if not verification_manifest.get("all_checks_passed"):
         raise RuntimeError("EXP043-R1 verification manifest is not passing")
-    write_state("COMPLETE", "COMPLETE", "EXP042 30/30 and EXP043 five-dataset K sensitivity independently verified")
+    write_state(
+        "COMPLETE",
+        "COMPLETE",
+        "EXP042 30/30 and EXP043 five-dataset K sensitivity independently verified",
+    )
     base.write_json(
         PIPELINE / "run_manifest.json",
         {
             "experiment_id": "EXP-042-043-PIPELINE-R1",
             "completed_utc": datetime.now(timezone.utc).isoformat(),
             "exp042_manifest_sha256": base.sha256(base.EXP042_RECOVERY / "run_manifest.json"),
-            "exp042_verification_manifest_sha256": base.sha256(base.EXP042_VERIFY / "run_manifest.json"),
+            "exp042_verification_manifest_sha256": base.sha256(
+                base.EXP042_VERIFY / "run_manifest.json"
+            ),
             "exp043_failed_aggregate_manifest_sha256": base.sha256(SOURCE / "run_manifest.json"),
             "exp043_final_manifest_sha256": base.sha256(OUTPUT / "run_manifest.json"),
             "exp043_verification_manifest_sha256": base.sha256(VERIFY / "run_manifest.json"),

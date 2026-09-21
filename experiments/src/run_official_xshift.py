@@ -57,9 +57,7 @@ def read_fcs(path: Path) -> tuple[np.ndarray, list[str]]:
     data = flowio.FlowData(str(path))
     matrix = np.asarray(data.events, dtype=np.float64).reshape(data.event_count, data.channel_count)
     names = [
-        data.channels[index].get("pnn")
-        or data.channels[index].get("pns")
-        or f"channel_{index}"
+        data.channels[index].get("pnn") or data.channels[index].get("pns") or f"channel_{index}"
         for index in range(1, data.channel_count + 1)
     ]
     return matrix, names
@@ -91,9 +89,10 @@ def run_xshift_until_cluster_output(
     output_fcs: Path | None = None
     last_progress_report = -30
 
-    with stdout_path.open("w", encoding="utf-8") as stdout_handle, stderr_path.open(
-        "w", encoding="utf-8"
-    ) as stderr_handle:
+    with (
+        stdout_path.open("w", encoding="utf-8") as stdout_handle,
+        stderr_path.open("w", encoding="utf-8") as stderr_handle,
+    ):
         process = subprocess.Popen(
             command,
             cwd=cwd,
@@ -128,13 +127,10 @@ def run_xshift_until_cluster_output(
                 output_candidates = sorted((cwd / "out").glob("*.fcs"))
                 if mst_stage_observed and len(output_candidates) == 1:
                     candidate_matrix, candidate_names = read_fcs(output_candidates[0])
-                    cluster_name_ok = (
-                        candidate_names[-1].lower().replace("_", "") == "clusterid"
-                    )
+                    cluster_name_ok = candidate_names[-1].lower().replace("_", "") == "clusterid"
                     cluster_values = candidate_matrix[:, -1]
                     cluster_output_complete = bool(
-                        candidate_matrix.shape
-                        == (expected_events, len(expected_marker_names) + 1)
+                        candidate_matrix.shape == (expected_events, len(expected_marker_names) + 1)
                         and candidate_names[:-1] == expected_marker_names
                         and cluster_name_ok
                         and np.all(np.isfinite(cluster_values))
@@ -261,9 +257,7 @@ def main() -> int:
     )
     save_execution(output, "csv2fcs", convert)
     xshift_argument = (
-        ("1" if args.auto_trigger == "numeric_one" else "auto")
-        if args.auto
-        else str(args.k)
+        ("1" if args.auto_trigger == "numeric_one" else "auto") if args.auto else str(args.k)
     )
     xshift = run_xshift_until_cluster_output(
         [
@@ -333,9 +327,7 @@ def main() -> int:
     if args.auto and cluster_ids is not None:
         output_cluster_count = int(np.unique(cluster_ids[cluster_ids >= 0]).size)
         automatic_selected_k_candidates = [
-            row["k"]
-            for row in automatic_scan
-            if row["predicted_clusters"] == output_cluster_count
+            row["k"] for row in automatic_scan if row["predicted_clusters"] == output_cluster_count
         ]
 
     checks: list[dict] = []
@@ -353,15 +345,18 @@ def main() -> int:
         and input_matrix.shape == (len(frame), len(marker_columns))
         and input_names == marker_columns,
         json.dumps(
-            {"shape": list(input_matrix.shape) if input_matrix is not None else None,
-             "names": input_names, "error": input_error}, ensure_ascii=False
+            {
+                "shape": list(input_matrix.shape) if input_matrix is not None else None,
+                "names": input_names,
+                "error": input_error,
+            },
+            ensure_ascii=False,
         ),
     )
     xshift_cluster_stage_complete = bool(
         xshift["exit_code"] == 0
         or (
-            xshift["completion_mode"]
-            == "stopped_after_cluster_output_before_mst_layout"
+            xshift["completion_mode"] == "stopped_after_cluster_output_before_mst_layout"
             and xshift["cluster_output_complete_before_stop"]
             and xshift["mst_stage_observed"]
         )
@@ -380,15 +375,21 @@ def main() -> int:
             }
         ),
     )
-    check("one_output_fcs", len(output_fcs_files) == 1, str([str(path) for path in output_fcs_files]))
+    check(
+        "one_output_fcs", len(output_fcs_files) == 1, str([str(path) for path in output_fcs_files])
+    )
     check(
         "output_fcs_valid",
         output_matrix is not None
         and output_matrix.shape == (len(frame), len(marker_columns) + 1)
         and output_names[: len(marker_columns)] == marker_columns,
         json.dumps(
-            {"shape": list(output_matrix.shape) if output_matrix is not None else None,
-             "names": output_names, "error": output_error}, ensure_ascii=False
+            {
+                "shape": list(output_matrix.shape) if output_matrix is not None else None,
+                "names": output_names,
+                "error": output_error,
+            },
+            ensure_ascii=False,
         ),
     )
     check(
@@ -397,9 +398,12 @@ def main() -> int:
         and int(cluster_ids.min()) >= -1
         and int(np.unique(cluster_ids[cluster_ids >= 0]).size) >= 2,
         json.dumps(
-            {"min": int(cluster_ids.min()) if cluster_ids is not None else None,
-             "clusters": int(np.unique(cluster_ids[cluster_ids >= 0]).size)
-             if cluster_ids is not None else None}
+            {
+                "min": int(cluster_ids.min()) if cluster_ids is not None else None,
+                "clusters": int(np.unique(cluster_ids[cluster_ids >= 0]).size)
+                if cluster_ids is not None
+                else None,
+            }
         ),
     )
     if args.auto:
@@ -435,7 +439,9 @@ def main() -> int:
         str(release_zip): sha256(release_zip),
         str(release_jar): sha256(release_jar),
         str(csv2fcs_jar): sha256(csv2fcs_jar),
-        str(output_fcs_files[0]): sha256(output_fcs_files[0]) if len(output_fcs_files) == 1 else None,
+        str(output_fcs_files[0]): sha256(output_fcs_files[0])
+        if len(output_fcs_files) == 1
+        else None,
     }
     (output / "artifact_hashes.json").write_text(
         json.dumps(artifacts, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
@@ -465,7 +471,8 @@ def main() -> int:
         "fit_policy": "all_events",
         "label_used_for_fit_or_selection": False,
         "predicted_clusters": int(np.unique(cluster_ids[cluster_ids >= 0]).size)
-        if cluster_ids is not None else None,
+        if cluster_ids is not None
+        else None,
         "unassigned_events": int(np.sum(cluster_ids < 0)) if cluster_ids is not None else None,
         "csv2fcs_runtime_seconds": convert["runtime_seconds"],
         "xshift_runtime_seconds": xshift["runtime_seconds"],
@@ -486,21 +493,17 @@ def main() -> int:
     (output / "run_manifest.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
-    regime_text = (
-        "官方命令行自动肘点"
-        if args.auto
-        else f"固定K={args.k}"
-    )
+    regime_text = "official command-line automatic elbow" if args.auto else f"fixed K={args.k}"
     audit = [
-        f"# {args.experiment_id} 官方X-shift {args.dataset}{regime_text}全量运行",
+        f"# {args.experiment_id} Full-data official X-shift run on {args.dataset}: {regime_text}",
         "",
-        f"事件={len(frame):,}；标记物={len(marker_columns)}；cofactor={spec['cofactor']}；预测簇={manifest['predicted_clusters']}。",
-        f"CSV→FCS耗时={convert['runtime_seconds']:.3f}s；X-shift耗时={xshift['runtime_seconds']:.3f}s。",
-        f"X-shift完成模式={xshift['completion_mode']}；MST后处理不进入聚类评价。",
-        f"参数制度={regime_text}；自动扫描点={len(automatic_scan)}；自动K候选={automatic_selected_k_candidates if args.auto else '不适用'}。",
-        f"输入输出标记物逐值一致={marker_values_exact}；全部检查={'通过' if manifest['all_checks_passed'] else '失败'}。",
+        f"Events={len(frame):,}; markers={len(marker_columns)}; cofactor={spec['cofactor']}; predicted clusters={manifest['predicted_clusters']}.",
+        f"CSV-to-FCS runtime={convert['runtime_seconds']:.3f}s; X-shift runtime={xshift['runtime_seconds']:.3f}s.",
+        f"X-shift completion mode={xshift['completion_mode']}; MST postprocessing is excluded from clustering evaluation.",
+        f"Parameter regime={regime_text}; automatic scan points={len(automatic_scan)}; automatic K candidates={automatic_selected_k_candidates if args.auto else 'not applicable'}.",
+        f"Marker values are identical between input and output={marker_values_exact}; all checks={'passed' if manifest['all_checks_passed'] else 'failed'}.",
         "",
-        "标签未进入拟合或参数选择；本运行不包含外部评价、K扫描或稳定性推断。",
+        "Labels did not enter fitting or parameter selection. This run does not include external evaluation, a K scan, or stability inference.",
     ]
     (output / "audit.md").write_text("\n".join(audit) + "\n", encoding="utf-8")
     print(json.dumps(manifest, ensure_ascii=False))

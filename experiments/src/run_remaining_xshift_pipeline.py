@@ -8,19 +8,16 @@ import platform
 import shutil
 import subprocess
 import sys
-import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from sklearn.metrics import adjusted_rand_score
-
 from evaluate_xshift_cross_dataset import evaluate_multiclass, evaluate_rare_target
 from run_official_xshift import read_fcs, run_xshift_until_cluster_output
 from run_xshift_nilsson_fixedK20_30repeat import bootstrap_ci
-
+from sklearn.metrics import adjusted_rand_score
 
 ROOT = Path(__file__).resolve().parents[1]
 RUNS = ROOT / "runs"
@@ -28,14 +25,20 @@ WORKSPACE = ROOT.parent
 JAVA = ROOT / "environments/temurin8-jre-win-x64/jdk8u504-b01-jre/bin/java.exe"
 JAR = WORKSPACE / "reference_implementations/vortex_29jun2017_rev2/VorteX.jar"
 CONFIG = ROOT / "config/datasets.json"
-EXP042_PROTOCOL = ROOT / "protocols/EXP-042_xshift_mosmann_fixedK20_30repeat_mst_bypass_preregistered.md"
-EXP042_RECOVERY_PROTOCOL = ROOT / "protocols/EXP-042-R1_xshift_mosmann_recovery_completion_preregistered.md"
+EXP042_PROTOCOL = (
+    ROOT / "protocols/EXP-042_xshift_mosmann_fixedK20_30repeat_mst_bypass_preregistered.md"
+)
+EXP042_RECOVERY_PROTOCOL = (
+    ROOT / "protocols/EXP-042-R1_xshift_mosmann_recovery_completion_preregistered.md"
+)
 EXP043_PROTOCOL = ROOT / "protocols/EXP-043_xshift_cross_dataset_K_sensitivity_preregistered.md"
 EXP042_SOURCE = RUNS / "EXP-042_xshift_mosmann_fixedK20_30repeat_mst_bypass_20260913"
 EXP042_RECOVERY = RUNS / "EXP-042-R1_xshift_mosmann_recovery_completion_20260913"
 EXP042_VERIFY = RUNS / "EXP-042V-R2_xshift_mosmann_recovery_independent_verification_20260913"
 EXP043 = RUNS / "EXP-043_xshift_cross_dataset_K_sensitivity_20260913"
-EXP043_VERIFY = RUNS / "EXP-043V_xshift_cross_dataset_K_sensitivity_independent_verification_20260913"
+EXP043_VERIFY = (
+    RUNS / "EXP-043V_xshift_cross_dataset_K_sensitivity_independent_verification_20260913"
+)
 PIPELINE = RUNS / "EXP-042-043_remaining_xshift_pipeline_20260913"
 
 
@@ -141,7 +144,12 @@ def acquire_lock() -> Path:
         lock.replace(stale)
     fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
     with os.fdopen(fd, "w", encoding="utf-8") as handle:
-        json.dump({"pid": os.getpid(), "created_utc": utcnow(), "command": sys.argv}, handle, ensure_ascii=False, indent=2)
+        json.dump(
+            {"pid": os.getpid(), "created_utc": utcnow(), "command": sys.argv},
+            handle,
+            ensure_ascii=False,
+            indent=2,
+        )
         handle.write("\n")
     return lock
 
@@ -172,7 +180,9 @@ def find_parent_labels(parent: Path) -> np.ndarray:
 def next_attempt_dir(base: Path) -> Path:
     base.mkdir(parents=True, exist_ok=True)
     attempts = sorted(path for path in base.glob("attempt*") if path.is_dir())
-    index = 0 if not attempts else max(int(path.name.removeprefix("attempt")) for path in attempts) + 1
+    index = (
+        0 if not attempts else max(int(path.name.removeprefix("attempt")) for path in attempts) + 1
+    )
     attempt = base / f"attempt{index:03d}"
     attempt.mkdir(exist_ok=False)
     return attempt
@@ -234,16 +244,14 @@ def run_fixed_k_attempt(
             (
                 info.get("cluster_output_complete_before_stop")
                 and info.get("mst_stage_observed")
-                and info.get("completion_mode")
-                == "stopped_after_cluster_output_before_mst_layout"
+                and info.get("completion_mode") == "stopped_after_cluster_output_before_mst_layout"
             )
-            or (
-                info.get("completion_mode") == "natural_exit"
-                and info.get("exit_code") == 0
-            )
+            or (info.get("completion_mode") == "natural_exit" and info.get("exit_code") == 0)
         )
         passed = structure_passed and execution_passed
-        detail = f"shape={matrix.shape}; marker_exact={np.array_equal(matrix[:, :-1], input_matrix)}"
+        detail = (
+            f"shape={matrix.shape}; marker_exact={np.array_equal(matrix[:, :-1], input_matrix)}"
+        )
         if passed:
             labels = np.rint(cluster_values).astype(np.int32)
             np.save(attempt / "cluster_ids_all_events.npy", labels)
@@ -280,7 +288,10 @@ def existing_exp042_entries() -> dict[int, Path]:
         manifest = directory / "run_manifest.json"
         if manifest.is_file():
             record = load_json(manifest)
-            if record.get("all_checks_passed") and (directory / "cluster_ids_all_events.npy").is_file():
+            if (
+                record.get("all_checks_passed")
+                and (directory / "cluster_ids_all_events.npy").is_file()
+            ):
                 entries[repeat] = directory
     return entries
 
@@ -320,7 +331,9 @@ def load_truth(dataset: str) -> tuple[np.ndarray, np.ndarray, dict]:
     series = pd.read_csv(source, sep=separator, usecols=["label"])["label"]
     if dataset == "Levine_13dim":
         evaluable = series.notna().to_numpy() & series.fillna(-1).between(1, 24).to_numpy()
-        labels = np.where(evaluable, series.fillna(-1).astype(int).astype(str).to_numpy(), "unassigned")
+        labels = np.where(
+            evaluable, series.fillna(-1).astype(int).astype(str).to_numpy(), "unassigned"
+        )
     else:
         labels = series.fillna("unassigned").astype(str).to_numpy()
         if DATASETS[dataset]["mode"] == "multiclass":
@@ -339,9 +352,7 @@ def evaluate_labels(dataset: str, labels: np.ndarray) -> tuple[dict, pd.DataFram
             truth[evaluable], labels[evaluable], labels
         )
         return metrics, population
-    metrics, target_clusters, _ = evaluate_rare_target(
-        truth, labels, DATASETS[dataset]["target"]
-    )
+    metrics, target_clusters, _ = evaluate_rare_target(truth, labels, DATASETS[dataset]["target"])
     return metrics, target_clusters
 
 
@@ -442,9 +453,7 @@ def finalize_exp042(entries: dict[int, Path]) -> None:
                 "bootstrap_mean_ci_high": high,
             }
         )
-    pd.DataFrame(stats).to_csv(
-        EXP042_RECOVERY / "endpoint_descriptive_statistics.csv", index=False
-    )
+    pd.DataFrame(stats).to_csv(EXP042_RECOVERY / "endpoint_descriptive_statistics.csv", index=False)
     pd.DataFrame(inventory).to_csv(EXP042_RECOVERY / "evidence_inventory.csv", index=False)
     interruption_rows = []
     for repeat in (26, 27):
@@ -462,15 +471,54 @@ def finalize_exp042(entries: dict[int, Path]) -> None:
         EXP042_RECOVERY / "interruption_evidence.csv", index=False
     )
     checks = [
-        {"check": "thirty_successful_repeats", "passed": len(entries) == 30, "detail": f"count={len(entries)}"},
-        {"check": "original_successes_preserved", "passed": sum(path.is_relative_to(EXP042_SOURCE) for path in entries.values()) == 26, "detail": "expected=26"},
-        {"check": "recovered_successes", "passed": sum(path.is_relative_to(EXP042_RECOVERY) for path in entries.values()) == 4, "detail": "expected=4"},
-        {"check": "run_metrics", "passed": len(metrics_frame) == 30 and metrics_frame["repeat"].nunique() == 30, "detail": f"rows={len(metrics_frame)}"},
-        {"check": "pairwise_count", "passed": len(pair_frame) == 435, "detail": f"rows={len(pair_frame)}"},
-        {"check": "finite_metrics", "passed": bool(np.isfinite(metrics_frame.select_dtypes(include=[np.number]).to_numpy()).all()), "detail": "numeric metrics"},
-        {"check": "all_cluster_counts_87", "passed": set(metrics_frame["n_predicted_clusters_all_events"]) == {87}, "detail": str(sorted(metrics_frame["n_predicted_clusters_all_events"].unique()))},
-        {"check": "evidence_inventory", "passed": len(inventory) == 150, "detail": f"files={len(inventory)}"},
-        {"check": "source_interruption_preserved", "passed": (EXP042_SOURCE / "runs/repeat026/xshift_stderr.log").is_file() and (EXP042_SOURCE / "runs/repeat027/xshift_stderr.log").is_file(), "detail": "original incomplete logs retained"},
+        {
+            "check": "thirty_successful_repeats",
+            "passed": len(entries) == 30,
+            "detail": f"count={len(entries)}",
+        },
+        {
+            "check": "original_successes_preserved",
+            "passed": sum(path.is_relative_to(EXP042_SOURCE) for path in entries.values()) == 26,
+            "detail": "expected=26",
+        },
+        {
+            "check": "recovered_successes",
+            "passed": sum(path.is_relative_to(EXP042_RECOVERY) for path in entries.values()) == 4,
+            "detail": "expected=4",
+        },
+        {
+            "check": "run_metrics",
+            "passed": len(metrics_frame) == 30 and metrics_frame["repeat"].nunique() == 30,
+            "detail": f"rows={len(metrics_frame)}",
+        },
+        {
+            "check": "pairwise_count",
+            "passed": len(pair_frame) == 435,
+            "detail": f"rows={len(pair_frame)}",
+        },
+        {
+            "check": "finite_metrics",
+            "passed": bool(
+                np.isfinite(metrics_frame.select_dtypes(include=[np.number]).to_numpy()).all()
+            ),
+            "detail": "numeric metrics",
+        },
+        {
+            "check": "all_cluster_counts_87",
+            "passed": set(metrics_frame["n_predicted_clusters_all_events"]) == {87},
+            "detail": str(sorted(metrics_frame["n_predicted_clusters_all_events"].unique())),
+        },
+        {
+            "check": "evidence_inventory",
+            "passed": len(inventory) == 150,
+            "detail": f"files={len(inventory)}",
+        },
+        {
+            "check": "source_interruption_preserved",
+            "passed": (EXP042_SOURCE / "runs/repeat026/xshift_stderr.log").is_file()
+            and (EXP042_SOURCE / "runs/repeat027/xshift_stderr.log").is_file(),
+            "detail": "original incomplete logs retained",
+        },
     ]
     check_frame = pd.DataFrame(checks)
     check_frame.to_csv(EXP042_RECOVERY / "checks.csv", index=False)
@@ -500,13 +548,17 @@ def finalize_exp042(entries: dict[int, Path]) -> None:
     }
     write_json(EXP042_RECOVERY / "run_manifest.json", manifest)
     (EXP042_RECOVERY / "scientific_summary.md").write_text(
-        "# EXP-042-R1 X-shift Mosmann 30次原生重复收尾\n\n"
-        f"原运行保留26个成功repeat，恢复4个；30/30进入正式集合。唯一分区={manifest['unique_partition_hashes']}；"
-        f"两两ARI范围=[{manifest['pairwise_partition_ari_min']:.6f}, {manifest['pairwise_partition_ari_max']:.6f}]。"
-        "repeat不是受控seed，原中断目录和日志继续保留。\n",
+        "# EXP-042-R1 Finalization of 30 native X-shift repeats on Mosmann\n\n"
+        f"The original run retained 26 successful repeats and 4 were recovered; all 30 enter the final set. Unique partitions={manifest['unique_partition_hashes']}; "
+        f"pairwise ARI range=[{manifest['pairwise_partition_ari_min']:.6f}, {manifest['pairwise_partition_ari_max']:.6f}]. "
+        "Repeats are not controlled seeds; the interrupted run directory and logs remain preserved.\n",
         encoding="utf-8",
     )
-    own_files = sorted(path for path in EXP042_RECOVERY.rglob("*") if path.is_file() and path.name != "artifact_hashes.json")
+    own_files = sorted(
+        path
+        for path in EXP042_RECOVERY.rglob("*")
+        if path.is_file() and path.name != "artifact_hashes.json"
+    )
     write_json(
         EXP042_RECOVERY / "artifact_hashes.json",
         {str(path.relative_to(EXP042_RECOVERY)): sha256(path) for path in own_files},
@@ -542,7 +594,9 @@ def ensure_exp042() -> None:
 
 
 def run_verifier(stage: str, source: Path, output: Path, protocol: Path) -> None:
-    if (output / "run_manifest.json").is_file() and load_json(output / "run_manifest.json").get("all_checks_passed"):
+    if (output / "run_manifest.json").is_file() and load_json(output / "run_manifest.json").get(
+        "all_checks_passed"
+    ):
         print(f"VERIFY_SKIP stage={stage} path={output}", flush=True)
         return
     command = [
@@ -609,14 +663,26 @@ def finalize_exp043(new_entries: dict[tuple[str, int], Path]) -> None:
         k20_labels = find_parent_labels(parent)
         labels_by_k: dict[int, np.ndarray] = {20: k20_labels}
         sources: dict[int, tuple[str, Path, Path]] = {
-            20: ("existing_K20_parent", parent / "run_manifest.json", parent / "cluster_ids_all_events.npy")
+            20: (
+                "existing_K20_parent",
+                parent / "run_manifest.json",
+                parent / "cluster_ids_all_events.npy",
+            )
         }
         if not sources[20][2].is_file():
-            sources[20] = ("existing_K20_parent_FCS", parent / "run_manifest.json", sorted((parent / "out").glob("*.fcs"))[0])
+            sources[20] = (
+                "existing_K20_parent_FCS",
+                parent / "run_manifest.json",
+                sorted((parent / "out").glob("*.fcs"))[0],
+            )
         for k in (10, 40):
             attempt = new_entries[(dataset, k)]
             labels_by_k[k] = np.load(attempt / "cluster_ids_all_events.npy", allow_pickle=False)
-            sources[k] = ("new_condition", attempt / "run_manifest.json", attempt / "cluster_ids_all_events.npy")
+            sources[k] = (
+                "new_condition",
+                attempt / "run_manifest.json",
+                attempt / "cluster_ids_all_events.npy",
+            )
         for k in (10, 20, 40):
             labels = labels_by_k[k]
             metrics, detail = evaluate_labels(dataset, labels)
@@ -666,14 +732,51 @@ def finalize_exp043(new_entries: dict[tuple[str, int], Path]) -> None:
     inventory_frame.to_csv(EXP043 / "condition_inventory.csv", index=False)
     numeric = metrics.select_dtypes(include=[np.number]).to_numpy()
     checks = [
-        {"check": "fifteen_registered_conditions", "passed": len(metrics) == 15 and not metrics.duplicated(["dataset", "knn_k"]).any(), "detail": f"rows={len(metrics)}"},
-        {"check": "ten_new_successful_conditions", "passed": len(new_entries) == 10, "detail": f"count={len(new_entries)}"},
-        {"check": "frozen_k_grid", "passed": set(metrics["knn_k"]) == {10, 20, 40}, "detail": str(sorted(metrics["knn_k"].unique()))},
-        {"check": "five_datasets", "passed": set(metrics["dataset"]) == set(DATASETS), "detail": str(sorted(metrics["dataset"].unique()))},
-        {"check": "finite_metrics", "passed": bool(np.isfinite(numeric).all()), "detail": "all numeric endpoints finite"},
-        {"check": "partition_comparisons", "passed": len(pair_frame) == 10 and pair_frame["partition_ari_to_k20"].between(-1, 1).all(), "detail": f"rows={len(pair_frame)}"},
-        {"check": "labels_posthoc_only", "passed": all(load_json(path / "run_manifest.json").get("label_used_for_fit_or_selection") is False for path in new_entries.values()), "detail": "10/10 new conditions"},
-        {"check": "inventory", "passed": len(inventory_frame) == 15, "detail": f"rows={len(inventory_frame)}"},
+        {
+            "check": "fifteen_registered_conditions",
+            "passed": len(metrics) == 15 and not metrics.duplicated(["dataset", "knn_k"]).any(),
+            "detail": f"rows={len(metrics)}",
+        },
+        {
+            "check": "ten_new_successful_conditions",
+            "passed": len(new_entries) == 10,
+            "detail": f"count={len(new_entries)}",
+        },
+        {
+            "check": "frozen_k_grid",
+            "passed": set(metrics["knn_k"]) == {10, 20, 40},
+            "detail": str(sorted(metrics["knn_k"].unique())),
+        },
+        {
+            "check": "five_datasets",
+            "passed": set(metrics["dataset"]) == set(DATASETS),
+            "detail": str(sorted(metrics["dataset"].unique())),
+        },
+        {
+            "check": "finite_metrics",
+            "passed": bool(np.isfinite(numeric).all()),
+            "detail": "all numeric endpoints finite",
+        },
+        {
+            "check": "partition_comparisons",
+            "passed": len(pair_frame) == 10
+            and pair_frame["partition_ari_to_k20"].between(-1, 1).all(),
+            "detail": f"rows={len(pair_frame)}",
+        },
+        {
+            "check": "labels_posthoc_only",
+            "passed": all(
+                load_json(path / "run_manifest.json").get("label_used_for_fit_or_selection")
+                is False
+                for path in new_entries.values()
+            ),
+            "detail": "10/10 new conditions",
+        },
+        {
+            "check": "inventory",
+            "passed": len(inventory_frame) == 15,
+            "detail": f"rows={len(inventory_frame)}",
+        },
     ]
     check_frame = pd.DataFrame(checks)
     check_frame.to_csv(EXP043 / "checks.csv", index=False)
@@ -699,12 +802,14 @@ def finalize_exp043(new_entries: dict[tuple[str, int], Path]) -> None:
     }
     write_json(EXP043 / "run_manifest.json", manifest)
     (EXP043 / "scientific_summary.md").write_text(
-        "# EXP-043 X-shift跨数据集K敏感性\n\n"
-        "五个数据集均按预注册K=10/20/40并列评价；K=20复用已验收父分区，新增10个官方全事件运行。"
-        "标签仅用于事后指标，结果不得用于反选部署K或跨算法排名。\n",
+        "# EXP-043 Cross-dataset X-shift K sensitivity\n\n"
+        "All five datasets are evaluated side by side at the preregistered K values 10, 20, and 40. K=20 reuses accepted parent partitions, and ten official full-event runs were added. "
+        "Labels are used only for post hoc metrics; the results must not be used to select a deployment K retrospectively or to rank algorithms.\n",
         encoding="utf-8",
     )
-    own_files = sorted(path for path in EXP043.rglob("*") if path.is_file() and path.name != "artifact_hashes.json")
+    own_files = sorted(
+        path for path in EXP043.rglob("*") if path.is_file() and path.name != "artifact_hashes.json"
+    )
     write_json(
         EXP043 / "artifact_hashes.json",
         {str(path.relative_to(EXP043)): sha256(path) for path in own_files},
@@ -723,7 +828,9 @@ def ensure_exp043() -> None:
         for k in (10, 40):
             entries[(dataset, k)] = run_exp043_condition(dataset, k)
             completed += 1
-            write_state("EXP043", "RUNNING", f"new conditions accepted {completed}/{total}: {dataset} K={k}")
+            write_state(
+                "EXP043", "RUNNING", f"new conditions accepted {completed}/{total}: {dataset} K={k}"
+            )
     manifest = EXP043 / "run_manifest.json"
     if not manifest.is_file() or not load_json(manifest).get("all_checks_passed"):
         finalize_exp043(entries)
@@ -731,7 +838,9 @@ def ensure_exp043() -> None:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Resume EXP-042, verify it, then run and verify EXP-043.")
+    parser = argparse.ArgumentParser(
+        description="Resume EXP-042, verify it, then run and verify EXP-043."
+    )
     parser.add_argument("--status-only", action="store_true")
     args = parser.parse_args()
     PIPELINE.mkdir(parents=True, exist_ok=True)
@@ -753,7 +862,11 @@ def main() -> int:
         ensure_exp043()
         write_state("EXP043_VERIFY", "RUNNING", "independent verification")
         run_verifier("exp043", EXP043, EXP043_VERIFY, EXP043_PROTOCOL)
-        write_state("COMPLETE", "COMPLETE", "EXP042 recovery and EXP043 final main experiment independently verified")
+        write_state(
+            "COMPLETE",
+            "COMPLETE",
+            "EXP042 recovery and EXP043 final main experiment independently verified",
+        )
         write_json(
             PIPELINE / "run_manifest.json",
             {
