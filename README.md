@@ -1,6 +1,6 @@
 # Cytometry clustering evaluation
 
-Code and processed results for the manuscript *Reference annotations and analysis choices define what cytometry clustering benchmarks measure*. The study uses five public cytometry datasets to examine how reference labels, event inclusion, parameter settings, matching rules and repeated runs affect clustering scores.
+Code and processed results for the manuscript *Reference annotations and clustering resolution shape cytometry benchmark results*. The study uses five public cytometry datasets to examine how reference labels, event inclusion, parameter settings, matching rules and repeated runs affect clustering scores.
 
 ## Repository structure
 
