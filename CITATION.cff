@@ -1,6 +1,6 @@
 cff-version: 1.2.0
 message: Please cite the accompanying manuscript if you use this code.
-title: Reference annotations and analysis choices define what cytometry clustering benchmarks measure
+title: Reference annotations and clustering resolution shape cytometry benchmark results
 type: software
 authors:
   - family-names: Lu
